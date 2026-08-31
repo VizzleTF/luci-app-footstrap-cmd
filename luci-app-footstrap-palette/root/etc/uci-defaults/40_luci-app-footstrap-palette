@@ -1,0 +1,27 @@
+#!/bin/sh
+# Announce this package to the theme.
+#
+# The theme's chrome requires every module named in `footstrap.settings.plugin` and knows nothing
+# else about any of them: the edge points inwards, so the theme never names this package and this
+# package needs no patch to the theme to be installed or removed.
+#
+# `footstrap.settings` is created by the theme's own uci-defaults, which luci.mk runs before this
+# one only if the theme is already installed — it is a hard dependency, but an install ORDER is not
+# guaranteed, so the section is created here when it is missing rather than assumed.
+[ -n "$IPKG_INSTROOT" ] && exit 0
+
+uci -q get footstrap.settings >/dev/null || {
+	uci -q set footstrap.settings=footstrap
+}
+
+# Idempotent: uci add_list appends unconditionally, so a reinstall would list the module twice and
+# the chrome would require it twice (harmless, but the config would read as broken).
+if ! uci -q get footstrap.settings.plugin | grep -qw fs-palette; then
+	uci -q add_list footstrap.settings.plugin=fs-palette
+	uci -q commit footstrap
+fi
+
+# The dispatcher caches the menu and the module list per boot; both are rebuilt from mtimes, but the
+# browser's copy of the assets is keyed on the package database, which this install has just moved.
+rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* >/dev/null 2>&1
+exit 0
