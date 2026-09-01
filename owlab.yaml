@@ -1,0 +1,96 @@
+# Dev routers for this package, via owlab (https://github.com/owfeed/owlab).
+#
+#   owlab up                 build and start every router
+#   owlab sync               push the working tree onto them
+#   owlab build              build a real .apk/.ipk with the OpenWrt SDK
+#   owlab install <pkg>      install a built package on a running router
+#   owlab open pal2512       open LuCI in a browser
+#
+# TWO routers, and the pair is the point: 25.12 installs with **apk** and 24.10 with **opkg**, and
+# the two package managers disagree about exactly the thing this package's postrm guards against —
+# opkg runs the OLD package's postrm with "upgrade" mid-upgrade, apk uses the new package's
+# pre/post-upgrade and never does. A build gate that only ever sees one of them cannot see that bug.
+#
+# Ports are outside the theme repo's 8022-8027 / 2224-2228 block and the agent stand's 8035 / 2235,
+# so all three configs can run at once.
+
+version: 1
+
+project:
+  name: luci-app-footstrap-palette
+  theme: footstrap
+
+  # The package lives in a subdirectory, so the install mapping is stated rather than defaulted.
+  # The THEME is installed alongside from its sibling checkout: this package is inert without it
+  # (the chrome is what requires `fs-palette`), so a stand carrying only this package would prove
+  # that the files copied and nothing else.
+  install:
+    ../luci-theme-footstrap/luci-theme-footstrap/htdocs: /www
+    ../luci-theme-footstrap/luci-theme-footstrap/ucode: /usr/share/ucode/luci
+    ../luci-theme-footstrap/luci-theme-footstrap/root: /
+    luci-app-footstrap-palette/htdocs: /www
+    luci-app-footstrap-palette/root: /
+
+  # cascade.css is concatenated from the theme's styles/ and is not in its tree. Without this a sync
+  # copies everything except the file LuCI asks for, and the router serves a 404 for the stylesheet.
+  build: ../luci-theme-footstrap/luci-theme-footstrap/build-css.sh ../luci-theme-footstrap/luci-theme-footstrap/htdocs/luci-static/footstrap/cascade.css --dev
+
+  # Runs on the router after every sync: the half of an install that copying files does not cover.
+  post_sync: |
+    uci -q set luci.themes.Footstrap=/luci-static/footstrap
+    uci -q commit luci
+    # Every asset is served as `?v=<PKG_VERSION>-<pkgs_update_time>`, the mtime of the package
+    # database, which a sync never touches — so the browser keeps the modules it has and the page
+    # runs a mixture of old and new. Both paths, because which one exists depends on the release.
+    for db in /lib/apk/db/installed /usr/lib/opkg/status; do [ -f "$db" ] && touch "$db"; done
+    # sync never runs /etc/uci-defaults, and never writes /etc/config — both are router state — so
+    # the package's own registration is repeated here. `uci set` on a package whose config file does
+    # not exist fails with "Entry not found" and `-q` hides it, which leaves the stand with an
+    # unregistered plugin and no error to say so.
+    [ -f /etc/config/footstrap ] || touch /etc/config/footstrap
+    uci -q get footstrap.settings >/dev/null || uci -q set footstrap.settings=footstrap
+    # Whole-token match: `grep -qw` treats `-` as a word boundary, so a list holding
+    # `fs-palette-anything` would count as holding `fs-palette` and skip the add_list.
+    case " $(uci -q get footstrap.settings.plugin) " in
+    	*" fs-palette "*) ;;
+    	*)
+    		uci -q add_list footstrap.settings.plugin=fs-palette
+    		uci -q commit footstrap
+    		;;
+    esac
+    # A config file that did not exist when rpcd read its ACLs is not covered by them; the symptom
+    # is the theme's Appearance tab answering `uci/get failed with error -32002: Access denied`.
+    /etc/init.d/rpcd reload >/dev/null 2>&1 || true
+
+defaults:
+  fidelity: basic
+  arch: auto
+  fixtures: [all]
+
+  # Added ON TOP of owlab's stock set, which is already what a shipping OpenWrt router has. Every
+  # entry is prefixed with +, so this list adds rather than replacing.
+  #
+  # The set is chosen for THIS package's gates, not for the theme's styling surface: each luci-mod-*
+  # here carries the menu node one command is gated on, so a stand without it silently proves
+  # nothing about that command. luci-mod-network and luci-mod-status are what `:ifup`, `:wifi`,
+  # `:ps`, `:kill`, `:route`, `:arp`, `:log` and `:dmesg` are all tested against.
+  packages:
+    - +luci
+    - +luci-mod-network
+    - +luci-mod-status
+    - +luci-mod-system
+    - +luci-app-firewall
+    - +luci-app-package-manager
+    - +iwinfo
+    - +iw
+    # dropbear ships no sftp-server and OpenSSH 9+ scp speaks SFTP by default, so without this every
+    # scp against the box fails.
+    - +openssh-sftp-server
+
+routers:
+  - id: pal2512
+    release: "25.12.4"
+    ports: { http: 8040, ssh: 2240 }
+  - id: pal2410
+    release: "24.10.7"
+    ports: { http: 8041, ssh: 2241 }
