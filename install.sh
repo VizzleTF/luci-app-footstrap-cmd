@@ -249,6 +249,11 @@ newest_feed_branch() {	# <candidates> -> the first branch that answers
 	return 1
 }
 
+# Every router probes the index, not only the ones whose release string says nothing. A branch the
+# feed does not publish, a host this router cannot resolve, a clock too far off for TLS, a network
+# that intercepts it — all of them look the same from here, and all of them mean "the feed cannot
+# serve this router". Writing a repository line for a feed that could not be read once meant
+# `exit 1` with a signed release sitting there unused.
 BRANCH=$(printf '%s' "${DISTRIB_RELEASE:-}" | cut -d. -f1,2)
 case "$BRANCH" in
 [0-9][0-9].[0-9][0-9])
@@ -258,24 +263,55 @@ case "$BRANCH" in
 		err "That is the Footstrap theme's floor, and this package is a plugin the theme loads."
 		exit 1
 	fi
+	CANDIDATES="$BRANCH"
 	;;
 *)
-	# SNAPSHOT, or a release string this cannot parse.
-	if [ "$PM" = apk ]; then _cands="$FALLBACK_BRANCHES_APK"; else _cands="$FALLBACK_BRANCHES_OPKG"; fi
-	BRANCH=$(newest_feed_branch "$_cands") || {
-		err "No feed branch carries $ARCH, and ${DISTRIB_RELEASE:-this release} names none."
-		exit 1
-	}
-	info "No branch in ${DISTRIB_RELEASE:-the release string}; using the newest the feed serves: $BRANCH"
+	# SNAPSHOT, or a release string this cannot parse: it has no branch of its own.
+	CANDIDATES=""
 	;;
 esac
+# The format's own line last, so a router on a release the feed does not publish yet still finds
+# one it can read rather than being refused.
+case "$PM" in
+	apk) _fb="$FALLBACK_BRANCHES_APK" ;;
+	*)   _fb="$FALLBACK_BRANCHES_OPKG" ;;
+esac
+# Deduplicated: on a 24.10 router the router's own branch and the ipk fallback are the same string,
+# and probing it twice made the failure message name one URL twice, which reads as a bug in the
+# script rather than as one unreachable host.
+for _b in $_fb; do
+	case " $CANDIDATES " in *" $_b "*) ;; *) CANDIDATES="$CANDIDATES $_b" ;; esac
+done
+FROM_FEED=yes
+FROM_FEED_ARG=feed
+BRANCH=$(newest_feed_branch "$CANDIDATES") || { BRANCH=''; FROM_FEED=no; FROM_FEED_ARG=release; }
+[ "$FROM_FEED" = yes ] && info "Feed branch: $BRANCH ($ARCH)"
 
 # --- feed -----------------------------------------------------------------
 # keep.d is not bookkeeping: sysupgrade wipes the key unless something claims it, and the package
 # would come back unupgradable. The repository line itself needs no entry — both managers'
 # customfeeds files are conffiles of the manager, and sysupgrade backs up every conffile whose
 # checksum has moved.
-if [ "$PM" = apk ]; then
+if [ "$FROM_FEED" = no ]; then
+	# --- no feed for this router: the release, verified -------------------------------------
+	#
+	# One of two things, and the script cannot tell them apart from here, so it says both: either
+	# owfeed publishes nothing this router can read, or this router could not reach owfeed. Naming
+	# the URLs is what lets the admin decide which, in one command.
+	#
+	# The package is still INSTALLED, from the signed release, and NO feed line is written for a
+	# feed that could not be read.
+	err "Could not read the $PM feed index for $ARCH from $FEED_HOST (router reports '${DISTRIB_RELEASE:-unknown}')."
+	for _b in $CANDIDATES; do err "  tried $FEED_HOST/releases/$_b/$ARCH/$INDEX"; done
+	err "If that opens in a browser, the router could not fetch it — check DNS, the clock, and TLS"
+	err "(uclient-fetch needs libustream-mbedtls; wget-ssl or curl are used instead when present)."
+	info "Installing from the signed release instead; \`$PM upgrade\` will NOT carry it forward."
+	install_from_release || {
+		err "Install the release asset by hand instead:"
+		err "  https://github.com/$REPO/releases/latest"
+		exit 1
+	}
+elif [ "$PM" = apk ]; then
 	# customfeeds.list rather than a file of our own under repositories.d/. apk reads every *.list
 	# in that directory, so both work for installing — but LuCI's package manager reads exactly
 	# three paths, so a feed in any other file is invisible in "Configure APK" and cannot be edited
@@ -334,7 +370,11 @@ else
 	fi
 fi
 
-install_language feed
+# The catalogue comes from wherever the package did: the feed trails a release by up to a day, so
+# a catalogue taken from `latest` against a package taken from the feed can be a version ahead and
+# render the newer strings in English. install_language() pins it to the installed version.
+install_language "$FROM_FEED_ARG"
+
 
 # Both caches, as postinst does: a stale /tmp/luci-modulecache bites exactly here, on a package
 # whose whole payload is JS the chrome requires. reload, never restart — restart logs out every
@@ -345,14 +385,24 @@ if [ -x /etc/init.d/rpcd ]; then /etc/init.d/rpcd reload >/dev/null 2>&1 || true
 
 printf '\n'
 _have=$(installed_version)
-if [ -z "$_have" ]; then
-	ok "Installed from the $FEED_NAME feed — \`$PM upgrade\` will keep it current."
-elif [ -z "$_before" ]; then
-	ok "Installed $PKG $_have — from the $FEED_NAME feed, \`$PM upgrade\` will keep it current."
-elif [ "$_before" != "$_have" ]; then
-	ok "Upgraded $PKG $_before -> $_have — \`$PM upgrade\` will keep it current."
+# WHERE it came from decides what to promise. A release install writes no feed line, so telling
+# that admin `$PM upgrade` keeps it current would be false — the next version reaches them only by
+# running this script again.
+if [ "$FROM_FEED" = yes ]; then
+	_carry="from the $FEED_NAME feed, \`$PM upgrade\` will keep it current"
+	_same="the feed carries nothing newer"
 else
-	ok "Already current: $PKG $_have — the feed carries nothing newer."
+	_carry="from the signed release; re-run this script to upgrade, \`$PM upgrade\` will not"
+	_same="the release carries nothing newer"
+fi
+if [ -z "$_have" ]; then
+	ok "Installed — $_carry."
+elif [ -z "$_before" ]; then
+	ok "Installed $PKG $_have — $_carry."
+elif [ "$_before" != "$_have" ]; then
+	ok "Upgraded $PKG $_before -> $_have — $_carry."
+else
+	ok "Already current: $PKG $_have — $_same."
 fi
 
 # A blank line between WHAT HAPPENED and WHAT TO DO NEXT.
