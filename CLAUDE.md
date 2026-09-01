@@ -26,7 +26,7 @@ router, the CSS layers and the stands. **Do not re-derive what a theme doc alrea
 
 ## How it attaches to the theme
 
-Three seams, all of them the theme's, none of them naming this package:
+Six seams, all of them the theme's, none of them naming this package:
 
 1. **`footstrap.settings.plugin`** — a uci list. `header.ut` whitelists each entry to the shape of a
    LuCI module name and prints `window.__fsPlugins`; the chrome requires each name at the end of its
@@ -47,7 +47,35 @@ Three seams, all of them the theme's, none of them naming this package:
    the de-duplication would exist twice. A theme too old to export `remember` keeps no section in
    its recents, which is what it did before.
 
+6. **`data-fs-shell` on our `<link>`** — the theme treats every sheet in the document as a view's
+   unless it carries this attribute (`fs-sheets.js`: `VIEW_SHEETS = 'style:not([data-fs-shell]),
+   link[rel~="stylesheet"]:not([data-fs-shell])'`), and its `<head>` observer is live before
+   `loadPlugins()` runs. Without the mark: `judgeSheet()` reads `el.sheet === null` on a sheet that
+   has not loaded yet and rules it invasive, `rehostIntoThemeLayer()` silences the original and
+   claims an `@import` shim for whatever page was open, and the NEXT navigation's
+   `scopeToCurrentPage()` disables it for the life of the document. **It is not `data-fs-chrome`** —
+   that marks a DOM *element* as zone 1 for the fence and does nothing on a `<link>`. The bar
+   element carries `data-fs-chrome`; the stylesheet carries `data-fs-shell`. Both are needed and
+   they are not interchangeable.
+
 `fs-router.onNavigate` and `fs-menutree.nodeForSegs` are also used, both exported by the theme.
+
+**The tree walk in `fs-palette-sections.js` is the theme's `fs-search.buildIndex()`, duplicated on
+purpose.** Both halves are ranked against each other by the same `search()`, so `depth` and `trail`
+have to mean the same thing on both sides: start INSIDE each mode (`admin` is a container, not a
+level, and its title is in nobody's trail), stop at the same `MAX_DEPTH = 4`, skip `logout` at
+depth 1. Getting it wrong is not a crash — it shifts every section row's rank by a constant and
+prefixes every trail with "Administration".
+
+**Our CSS may not name the theme's private tokens without a fallback.** `--fs-*` is the private
+tier and `mangle-tokens.sh` renames it to `--a`, `--b`, … deriving the reserved set by scanning the
+THEME's own `htdocs/luci-static/resources` and `ucode` — which this package is not in. Measured
+against 0.14.5: of the 21 `--fs-*` names `palette.css` reads, **6 survive and 15 do not**. A dev
+stand mangles nothing, so the failure is invisible exactly where it would be caught. Every `var()`
+therefore names the private token first and falls back to the **export tier**
+(`--background-color-*`, `--border-color-*`, `--text-color-*` — the documented outbound contract
+with third-party apps, a different prefix that the mangler does not touch) for colour, and to the
+theme's own measured value at density 1 for everything else.
 
 **Never patch the theme from here, and never add a seam without needing it.** A change on the theme
 side is a change to a shipped package with its own release stream; if one is unavoidable it goes in
@@ -58,14 +86,23 @@ version that does not have it yet.
 
 | File | Owns | Loaded |
 |---|---|---|
-| `fs-palette.js` | the entry point: the `<link>`, the `:` binding, registering the source | every page (700 B) |
-| `fs-palette-sections.js` | the section index: two harvesters, the cache, the palette rows | every page (3 154 B) |
-| `fs-palette-cmdline.js` | the bar on the bottom edge: input, wildmenu, echo area, keys, history | on the first `:` (2 748 B) |
-| `fs-palette-commands.js` | the command table, the gate, `suggest()` and `run()` | on the first `:` (6 368 B) |
+| `fs-palette.js` | the entry point: the `<link>`, the `:` binding, registering the source | every page (956 B) |
+| `fs-palette-sections.js` | the section index: two harvesters, the cache, the palette rows, `pages()` | every page (7 583 B) |
+| `fs-palette-cmdline.js` | the bar on the bottom edge: input, wildmenu, echo area, keys, history | on the first `:` (4 401 B) |
+| `fs-palette-commands.js` | the command table, the gate, `suggest()` and `run()` | on the first `:` (15 013 B) |
 
-Bytes after terser, as `luci.mk` minifies them. One concern per module, composed by calling:
+Bytes after **jsmin**, which is what `luci.mk` runs (`LUCI_MINIFY_JS?=1`, `luci.mk:18`). Measured by
+building `modules/luci-base/src/jsmin.c` from the luci checkout and piping each file through it —
+the theme's terser path is a CI step of its own and this package does not have it, so an earlier
+"after terser" figure here described a build that never existed. One concern per module, composed
+by calling:
 `L.require` makes a singleton and raises `DependencyError` on a cycle, so a module can never
 `extend` another.
+
+The two whose numbers matter: the `?v=` on our `<link>` is concatenated by hand, because
+`L.resource()` adds none (LuCI's `SubstituteVersion` rewrites `.ut`/`.htm`, not a link built in JS)
+and `L.path()` filters a query part against `[a-zA-Z0-9_.%=&;-]`, which would silently drop the `~`
+a git-derived `resource_version` carries.
 
 ## The rule that decides everything: no ACL of our own
 
@@ -75,13 +112,38 @@ that ACL group is present in the session's own, already ACL-filtered, `/admin/me
 
 | command | ubus / exec | gated on the node | which depends on |
 |---|---|---|---|
-| `:restart` `:start` `:stop` `:enable` `:disable` `:services` | `rc list`, `rc init` | `admin/system/startup` | `luci-mod-system-init` |
+| `:restart` `:start` `:stop` `:reload` `:enable` `:disable` `:services` | `rc list`, `rc init` | `admin/system/startup` | `luci-mod-system-init` |
 | `:reboot` | `system reboot` | `admin/system/reboot` | `luci-mod-system-reboot` |
-| `:ping` | `/bin/ping` | `admin/network/diagnostics` | `luci-mod-network-diagnostics` |
-| `:ip` | `network.interface dump` | — | `luci-base-network-status` |
-| `:sys` | `system board`, `system info` | — | `luci-mod-status-index` |
-| `:log` | `log read`, `/usr/libexec/syslog-wrapper` | — | `luci-mod-status-logs` |
-| `:apply` `:revert` `:set` `:back` | none beyond the page you are on | — | — |
+| `:ping` `:trace` `:dns` | `/bin/ping`, `/bin/traceroute`, `/usr/bin/nslookup` | `admin/network/diagnostics` | `luci-mod-network-diagnostics` |
+| `:ifup` `:ifdown` | `/sbin/ifup`, `/sbin/ifdown` | `admin/network/network` | `luci-mod-network-config` |
+| `:wifi` | `/sbin/wifi` | `admin/network/wireless` | `luci-mod-network-config` |
+| `:sys` `:conn` | `system board`, `system info`, `file read` on `/proc/sys/net/netfilter/nf_conntrack_{count,max}` | `admin/status/overview` | `luci-mod-status-index` |
+| `:log` `:dmesg` | `log read`, `/usr/libexec/syslog-wrapper`, `/bin/dmesg -r` | `admin/status/logs` | `luci-mod-status-logs` |
+| `:ps` `:kill` | `luci getProcessList`, `/bin/kill` | `admin/status/processes` | `luci-mod-status-processes` |
+| `:route` `:arp` | `/sbin/ip -[46] route show table all`, `… neigh show` | `admin/status/routes` | `luci-mod-status-routes` |
+| `:time` | `luci setLocaltime` | `admin/system/system` | `luci-mod-system-config` |
+| `:ip` | `network.interface dump` | — (no node names it) | `luci-base-network-status` |
+| `:apply` `:revert` `:set` `:back` `:changes` `:help` `:e` `:q` | none beyond the page you are on | — | — |
+
+`:e` needs no gate in any sense: the page list it completes over IS the ACL-filtered menu, so a
+page the session may not open is not in it to be completed. It reads that list from
+`fs-palette-sections.pages()` rather than walking the tree a third time — the module is already
+loaded on every page, so the command table gets it for nothing, and there is no require cycle
+(sections requires the theme's modules and never the command table).
+
+`:ip` is the one command with no gate available: **no menu node anywhere in luci names
+`luci-base-network-status` in its `depends.acl`**, so there is nothing to test for. It is offered
+to everyone and reports the denial plainly instead — which is why its declaration, and every other
+one whose answer is worth trusting, carries `reject: true`. The default is to RESOLVE with the ubus
+status code, and that default is what made the `:log` fallback dead on arrival (a missing `log`
+object was coerced by `expect: { log: [] }` into an empty log) and what could leave `:reboot!`
+showing an unclosable "Rebooting…" modal over a router that never rebooted.
+
+Two rules for anything that reaches `fs.exec`: the ACL patterns for `/sbin/ip` are **whole command
+lines** (`/sbin/ip -[46] route show table all`), so the arguments are not ours to vary — a "nicer"
+variation is simply denied. And every free-text argument is refused when it begins with `-`
+(`optionLike()`): rpcd execs as root and a bare leading dash is read by the tool as an option, so
+`:ping -f` would otherwise be a root flood ping.
 
 A grant here would hand every holder of this package's group a permission their LuCI account was
 never given. **Adding an `acl.d` entry is a security change and needs `/security-review` in the
@@ -100,8 +162,10 @@ Two harvesters, cheapest first:
    Selectors are in `DOM_SEL`; `h4` and below are deliberately excluded, being field groups and
    status boxes that would bury the page in its own results.
 2. **The view module's source**, at idle, for pages this session has not opened. Fetched at exactly
-   the URL `luci.js` would use (`L.env.base_url` + the dotted name + the same `?v=`), so a page the
-   router has already prefetched is a browser-cache hit and costs nothing.
+   the URL `luci.js` would use (`L.env.base_url` + the menu node's `action.path` + the same `?v=`),
+   so a page the router has already prefetched is a browser-cache hit and costs nothing. A 404 is
+   cached as "this page has no sections"; any other non-OK is not, or a 503 while rpcd restarts
+   would blank a page's sections until the next package upgrade.
 
 Measured on a stock 25.12 stand carrying 20 third-party apps:
 
@@ -112,6 +176,11 @@ Measured on a stock 25.12 stand carrying 20 third-party apps:
 | section and tab titles extracted | 214 |
 | the resulting index | 6.7 KB |
 | one session's harvest under the 256 KB budget | 24 pages, 340 KB |
+
+Re-measured 2026-09-01 on the agent stand (`agent2512`, 25.12.4, the same 20 apps), after the walk
+was corrected to start inside the mode: **71 pages indexed, 163 rows, 274 786 B spent**. The row
+count roughly doubled against the earlier figure because the old walk stopped one level short of
+`MAX_DEPTH` and never reached a sub-tab.
 
 The 340 KB is the budget plus one file: a view's size is not knowable before it is fetched, so the
 last one overshoots by its own length (82 KB `network/wireless` in that run). **A number in a
@@ -129,7 +198,11 @@ package upgrade invalidates it and nothing else has to. Nothing is fetched at al
 
 Taking a section row opens the tab it sits behind and scrolls to it, through `onTake`. One
 mechanism: a MutationObserver on **`#maincontent`** — never `#view`, which the router replaces right
-after it stamps the page, leaving an observer on that node watching an orphan — plus a 3 s deadline.
+after it stamps the page, leaving an observer on that node watching an orphan — plus a **10 s**
+deadline (`LAND_MS`). Ten and not three: the theme's own Appearance tab is appended by
+fs-appearance after the stock System page has rendered, and an app that builds its tabs behind two
+RPCs is slower again; a window that expires while the page is still building fails silently, which
+is the worst way to fail. It ends early on the next navigation, which is the real staleness signal.
 
 **The request outlives its first success on purpose**, and that is the part that reads as a bug if
 it is "cleaned up". The row is a real link, so taking one on the page it already points at is still
@@ -160,15 +233,32 @@ time — so never trade a "why" away for bytes.
 ## Commands
 
 ```sh
+# this repo's own stands: pal2512 (25.12, apk) and pal2410 (24.10, opkg), ports 8040-8041 /
+# 2240-2241. TWO routers because the two package managers disagree about the upgrade path, which is
+# what the postrm guard exists for — see owlab.yaml.
+owlab up
+owlab sync
+owlab build -release 25.12.4 -arch x86_64 -out dist   # a real .apk
+owlab build -release 24.10.7 -arch x86_64 -out dist   # a real .ipk
+
 # the agent's own stand (config outside every checkout, one router, ports 8035 / 2235)
 owlab -c ../tmp/owlab-agent/owlab.yaml sync agent2512
 owlab -c ../tmp/owlab-agent/owlab.yaml status
 
-# this package's files on that stand
-docker exec owlab-luci-theme-footstrap-agent-agent2512 ls /www/luci-static/resources/fs-palette-*.js
+# this package's files on that stand. Note the glob: `fs-palette-*.js` does NOT match
+# `fs-palette.js`, and the entry point is the one file whose absence breaks everything.
+docker exec owlab-luci-theme-footstrap-agent-agent2512 ls /www/luci-static/resources/ | grep fs-palette
+docker exec owlab-luci-theme-footstrap-agent-agent2512 ls /www/luci-static/footstrap-palette/
 
 # what the index holds right now, from the browser console
 L.require('fs-palette-sections').then(m => m.stats())
+
+# the catalogue, after adding or changing any _('…')
+LUCI_SRC=../../luci ./luci-app-footstrap-palette/update-po.sh
+LUCI_SRC=../../luci ./luci-app-footstrap-palette/update-po.sh --check
+
+# the minifier the buildbot actually uses, for the T0 round-trip
+cc -O2 -o /tmp/jsmin ../luci/modules/luci-base/src/jsmin.c
 ```
 
 `owlab sync` never runs `/etc/uci-defaults` (that directory is router state), so the agent config's
@@ -177,18 +267,112 @@ served under is the mtime of that database, and without moving it the browser ke
 modules it already has and the page runs a mixture of old and new. Written up in the theme's
 `docs/development.md`, "Caches while iterating".
 
+**The postinst reloads rpcd**, even though this package ships no `acl.d`. The uci-defaults script
+CREATES `/etc/config/footstrap` when the theme has not got there first, and an rpcd already running
+does not cover a uci package whose file did not exist when it read its ACLs — the symptom is the
+theme's Appearance tab answering `uci/get failed with error -32002: Access denied` for a config the
+session is fully entitled to read. Observed on the stand, and it is `reload`, never `restart`:
+restart drops every LuCI session.
+
+**`/etc/config` is router state too**, so the theme's shipped `/etc/config/footstrap` stub never
+lands on a synced stand either. `uci set` on a package whose config file does not exist fails with
+"Entry not found", and `-q` hides it — the stand then has an unregistered plugin and no error to
+say so. Both the package's uci-defaults and the stand's `post_sync` `touch` the file first, and
+both match the plugin name as a whole space-delimited token: `grep -qw fs-palette` treats `-` as a
+word boundary, so a list holding `fs-palette-anything` counted as holding `fs-palette`.
+
 ## Verifying
 
 No npm gate suite here yet. What must hold before a change is called done:
 
-- **T0** — each edited module parses (`node -e "new Function(readFileSync(f))"`), and every `.ut` the
-  theme's side touched compiles with `ucode -T -c -o /dev/null` (run it in the container; the host
-  has no `ucode`).
-- **T1** — a Playwright probe against `agent2512`: the plugin appears in `window.__fsPlugins`, `:`
-  opens the bar, `:restart <Tab>` completes from the live `rc list`, a printing command prints, the
-  index has rows, and a query finds a section. The console must be clean — the one 403 is the login
-  POST before auth, not ours.
-- **T2** — a real package build installed on both package managers. Not done for this package yet.
+- **T0** — each edited module parses (`node -e "new Function(readFileSync(f))"`), the uci-defaults
+  script passes `sh -n`, and every `.ut` the theme's side touched compiles with
+  `ucode -T -c -o /dev/null` (run it in the container; the host has no `ucode`).
+  Also **minify and re-parse**: build `modules/luci-base/src/jsmin.c` from the luci checkout, pipe
+  each module through it, and `new Function()` the OUTPUT. jsmin eats the rest of a file after a
+  regex literal that follows `return` or `=>` and **exits 0**, so a grep for the pattern is a
+  weaker check than actually running the minifier the buildbot runs.
+- **T1** — a Playwright probe against `agent2512` (42 assertions as of 2026-09-01, all green):
+  the plugin appears in `window.__fsPlugins`; the stylesheet is present, marked `data-fs-shell`,
+  carries a `?v=`, and **is still enabled with a non-zero rule count after a navigation** (the
+  assertion that catches both the sheet-rehosting trap and a csstidy-mangled sheet); the bar
+  computes to `position: fixed` with a real `z-index`; `:restart <Tab>` completes from the live
+  `rc list`; every printing command prints router data; `:ping -f` is refused; `trail` does not
+  begin with the mode title; `:e` completes over the menu and navigates; and the theme's own palette
+  lists a section row.
+
+  The console must be clean **of our errors**, and the probe's two exclusions are established
+  rather than assumed. The 403 is the login POST before auth. The other is
+  `uci/get … -32002: Access denied` for config `luci`, raised on the System page of the agent stand
+  by the theme or luci-base on a session that stand does not grant `uci read: luci` to: proved not
+  ours by reproducing it with `footstrap.settings.plugin` emptied, so none of this package's
+  modules loaded at all, and it does not occur on `pal2512` where the theme is installed as a
+  package. The filter pins both the config name and the ubus code, so a different denial still
+  fails.
+
+  **The probe must drive the bar from a page with no form on it.** Driving it from
+  `admin/system/system` once rewrote `luci.main.mediaurlbase` and `luci.main.lang` on the stand:
+  a `:` pressed while focus sits in a `<select>` is type-ahead, and the Enter after it saves the
+  form. `openBar()` blurs first and asserts the bar is open before typing; the commands run from
+  `admin/status/overview`.
+- **T2** — a real package build installed on both package managers. **Done, green** (2026-09-01):
+  47 assertions on the artifacts (`tools/t2-inspect.sh`), 10 per router on install/upgrade/remove
+  (`tools/t2-install.sh`), and the whole T1 probe re-run against the INSTALLED package.
+
+  ```sh
+  owlab build -release 25.12.4 -arch x86_64 -out dist    # .apk
+  owlab build -release 24.10.7 -arch x86_64 -out dist    # .ipk
+  T2_BUILD_LOG=<build log> tools/t2-inspect.sh dist
+  tools/t2-install.sh owlab-luci-app-footstrap-palette-pal2410 dist/all/…​.ipk opkg
+  tools/t2-install.sh owlab-luci-app-footstrap-palette-pal2512 dist/noarch/…​.apk apk
+  PALETTE_BASE=http://localhost:8040 node tools/probe.mjs
+  ```
+
+  **The theme must be installed as a PACKAGE first**, not synced: `LUCI_DEPENDS` names it, so
+  neither package manager will install this one without it. That is also the only way to test the
+  thing that matters most — see below.
+
+  Four things this tier caught that nothing else could:
+
+  - **The token fallbacks are load-bearing, and now measured on a real build.** In the theme's
+    shipped `cascade.css`, `--fs-glass`, `--fs-z-popover` and `--fs-space-2` occur **0 times**
+    while `--fs-accent` (77) and `--fs-text` (81) survive. The bar still computes to
+    `position: fixed; z-index: 850` because every `var()` falls back. Without the fallbacks it
+    would have no background, no z-index and no padding — on every real install, and on no stand.
+  - **The postrm guard, on a REAL version upgrade, both managers.** `opkg install` of the same
+    version is a no-op ("already up to date"), so re-installing proves nothing, and `owlab build`
+    does not forward `FOOTSTRAP_VERSION` into its SDK container. What makes a genuine upgrade
+    possible anyway is the thing that is otherwise a defect: with no git tag, `findrev` derives the
+    version from mtimes, so any two builds of an edited tree differ. Two builds a day apart gave
+    `0.260831.76478` and `0.260831.79550`, and both paths were then walked for real:
+
+    ```
+    opkg:  Upgrading luci-app-footstrap-palette on root from 0.260831.76478 to 0.260831.79550
+    apk:   Upgrading luci-app-footstrap-palette (0.260831.76478 -> 0.260831.79550)
+             Executing luci-app-footstrap-palette-0.260831.79550.post-upgrade
+    ```
+
+    `footstrap.settings.plugin` still read `fs-palette` after each, and all 31 commands were present
+    in the upgraded files. The apk line also confirms the claim the postrm comment rests on: apk
+    runs the NEW package's `post-upgrade` and never the old one's `post-deinstall`, which is why
+    guarding on `$1` is correct for opkg and harmless for apk.
+
+    The guard is additionally checked in isolation by `tools/t2-install.sh`, which calls
+    `sh /usr/lib/opkg/info/luci-app-footstrap-palette.postrm upgrade` directly — it must exit 0 and
+    leave the registration alone, while `… postrm remove` must clear it.
+  - **`owlab build -out` copies out only the NAMED package**, so `luci-i18n-footstrap-palette-ru`
+    never reaches `dist/` even though the SDK builds it. The proof is in the build log (`po2lmo`,
+    `footstrap-palette.ru.lmo`), which is what `T2_BUILD_LOG` points the inspector at. Not a defect
+    — but the log has to be the FULL one: a build script that pipes owlab through `tail` cuts the
+    po2lmo line and the inspector then reports a regression that is its own.
+  - **An apk is not a tar.** OpenWrt's apk v3 is an ADB container (`ADBd` magic); its payload comes
+    out with `apk extract` and its metadata and scripts with `apk adbdump`, both run on a 25.12
+    router. The ipk keeps ours in `CONTROL/postinst-pkg`, never `CONTROL/postinst` — that one is
+    OpenWrt's generated wrapper calling `default_postinst`, which is what runs uci-defaults.
+
+  One stand defect, not a package one: the owlab 24.10 image ships an `/etc/opkg.conf` with no
+  `arch` lines at all, so opkg rejects an `all` package as "incompatible with the architectures
+  configured". `tools/t2-install.sh` restores the stock lines before installing.
 
 **Never lower a tier on your own**, and never idle against a running command: anything over five
 minutes is T2, started detached with the theme's `tools/bg.sh`, run-id reported.
@@ -201,11 +385,21 @@ that action, each time** — finished work and green checks are not authorizatio
 
 ## Status, and what is open
 
-Prototype. Known gaps, in the order they matter:
+Feature-complete for the commands it ships and green on T0 and T1. Known gaps, in the order they
+matter:
 
-- **No `po/`.** Strings are bare English literals, and `_()` with no catalogue renders in English
-  silently, so this stays invisible until someone runs a translated UI.
-- **No `git init`, no CI, no `package.json`/eslint config.** JS is checked by parser only; the
-  theme's eslint config assumes its own globals and paths.
+- **No CI, no `package.json`/eslint config.** T0, T1 and T2 are all scripts run by hand; nothing
+  runs them on a push. `tools/probe.mjs` borrows playwright from the theme's checkout because this
+  package has no `node_modules` of its own.
+- **No release stream.** No tag, so `findrev` falls back to an mtime-derived `0.<date>.<n>` that
+  differs between builds; no feed, no `install.sh`, no CHANGELOG. JS is checked by parser and by jsmin round-trip only;
+  the theme's eslint config assumes its own globals and paths.
+- **`po/ru` only.** The catalogue is complete (85/85) and `./update-po.sh --check` gates it, but
+  every other language falls through to English.
 - **The command table is a constant**, not something a third package could extend.
-- **`:log` and `:ping` are the only free-text commands**; everything else completes from live data.
+- **No cancellation.** `:ping` runs for three seconds and `:trace` longer; Escape discards the
+  ANSWER (the generation counter) but the tool keeps running on the router. Nothing that takes
+  minutes — a package install, a sysupgrade — may be added until there is a real abort.
+- **`:kill` completes nothing**: the pid is typed and validated against `^\d+$`. Completing it
+  would mean holding a process list the moment the bar opens, which is a round trip every session
+  pays for a command few run; `:ps` prints the pids instead.
