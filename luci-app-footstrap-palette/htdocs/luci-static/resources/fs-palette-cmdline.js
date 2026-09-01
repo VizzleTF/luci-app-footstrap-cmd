@@ -1,5 +1,7 @@
 'use strict';
 'require baseclass';
+'require fs-router as router';
+'require fs-prefs as prefs';
 'require fs-palette-commands as commands';
 
 /* The command line: one line on the bottom edge of the window, opened by `:`.
@@ -14,8 +16,11 @@
  * candidate strip, the echo area and the keys, and nothing else. */
 
 let _root = null, _input = null, _out = null, _hint = null;
-let _hist = [], _at = -1, _draft = '';
+let _hist = [], _view = [], _at = -1, _draft = '';
 let _rows = null, _pick = -1;
+/* Where focus was when the bar opened, so closing it puts the reader back rather than on <body>.
+ * Held as a node and checked before use: the router can replace the page under an open bar. */
+let _returnTo = null;
 /* Bumped by every submit, open and close. `:ping` takes three seconds and `:log` a round trip;
  * without this the answer to one command lands in whatever the bar is showing by the time it
  * arrives — measured on a stand, ping's output printed over a later `:set`. */
@@ -24,16 +29,14 @@ let _gen = 0;
 const HIST_KEY = 'fs-palette-history';
 const HIST_MAX = 50;
 
+/* prefs owns the try/catch around localStorage and the "is it really an array" guard; a private
+ * copy of that here was a second implementation of the same corruption handling. */
 function histAll() {
-	try {
-		const v = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
-		return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
-	} catch (e) { return []; }
+	return prefs.lsGetArr(HIST_KEY).filter((x) => typeof x === 'string');
 }
+
 function histPush(line) {
-	try {
-		localStorage.setItem(HIST_KEY, JSON.stringify([ line ].concat(histAll().filter((l) => l !== line)).slice(0, HIST_MAX)));
-	} catch (e) {}
+	prefs.lsSet(HIST_KEY, JSON.stringify([ line ].concat(histAll().filter((l) => l !== line)).slice(0, HIST_MAX)));
 }
 
 function echo(text, bad) {
@@ -44,20 +47,38 @@ function echo(text, bad) {
 }
 
 /* vim's wildmenu: the candidates on one wrapping row, the current one marked. It is also the only
- * place a command's help text is shown, so it is drawn whenever there is something to complete —
- * not only after a Tab. */
+ * place a command's help text is shown for a command being completed — `:help` is what shows it
+ * for one that is not.
+ *
+ * Each candidate is a <button>, not a <span>: the strip was keyboard-only, and a reader who had
+ * found the row they wanted with the mouse had no way to take it. Taking one fills the line, and
+ * submits it only when the line is complete — a command still waiting for an argument leaves the
+ * bar open with the cursor after the space, which is what Tab does. */
 function drawHint() {
 	_hint.innerHTML = '';
 	if (!_rows || !_rows.length) { _hint.hidden = true; return; }
 	_rows.slice(0, 40).forEach((r, i) => {
-		_hint.appendChild(E('span', {
+		_hint.appendChild(E('button', {
+			'type': 'button',
 			'class': 'fs-pal-cand' + (i === _pick ? ' active' : ''),
-			'title': r.hint || ''
+			'title': r.hint || '',
+			'tabindex': '-1',
+			'click': (ev) => { ev.preventDefault(); take(i); }
 		}, [ r.title ]));
 	});
 	const cur = _rows[_pick < 0 ? 0 : _pick];
 	_hint.appendChild(E('span', { 'class': 'fs-pal-help' }, [ cur && cur.hint ? cur.hint : '' ]));
 	_hint.hidden = false;
+}
+
+function take(i) {
+	if (!_rows || !_rows[i]) return;
+	_pick = i;
+	_input.value = _rows[i].line;
+	_input.focus();
+	/* a line that ends in a space is a command still asking for its argument */
+	if (/\s$/.test(_input.value)) { refresh(); return; }
+	submit();
 }
 
 function refresh() {
@@ -79,6 +100,7 @@ function submit() {
 	if (!line) { close(); return; }
 	histPush(':' + line);
 	_hist = histAll();
+	_view = _hist;
 	_at = -1;
 	const mine = ++_gen;
 	echo('…');
@@ -91,7 +113,7 @@ function submit() {
 		echo(String(res));
 		_input.value = '';
 		refresh();
-	}, (e) => { if (mine === _gen) echo(String(e.message || e), true); });
+	}, (e) => { if (mine === _gen) echo(String((e && e.message) || e), true); });
 }
 
 /* navigation goes through an anchor, so the theme's router owns the decision and no copy of it
@@ -103,13 +125,20 @@ function go(segs) {
 	a.remove();
 }
 
+/* Up filters by what has been typed, the way a shell and vim's cmdline both do: `:re<Up>` walks
+ * the `:restart …` lines and not the whole list. The unfiltered list is what an empty line gets,
+ * so the plain "last command" gesture is unchanged. */
 function histStep(dir) {
-	if (!_hist.length) return;
-	if (_at < 0) _draft = _input.value;
+	if (_at < 0) {
+		_draft = _input.value;
+		const pre = _draft.replace(/^:/, '');
+		_view = pre ? _hist.filter((l) => l.slice(1).indexOf(pre) === 0) : _hist;
+	}
+	if (!_view.length) return;
 	const next = _at + dir;
-	if (next < -1 || next >= _hist.length) return;
+	if (next < -1 || next >= _view.length) return;
 	_at = next;
-	_input.value = (_at < 0) ? _draft : _hist[_at];
+	_input.value = (_at < 0) ? _draft : _view[_at];
 	refresh();
 }
 
@@ -117,7 +146,7 @@ function build() {
 	_out = E('pre', { 'class': 'fs-pal-out', 'aria-live': 'polite', 'hidden': '' });
 	_hint = E('div', { 'class': 'fs-pal-hint', 'hidden': '' });
 	_input = E('input', {
-		'type': 'text', 'class': 'fs-pal-input', 'aria-label': 'Command',
+		'type': 'text', 'class': 'fs-pal-input', 'aria-label': _('Command'),
 		'autocomplete': 'off', 'autocapitalize': 'off', 'spellcheck': 'false'
 	});
 	_root = E('div', {
@@ -125,7 +154,7 @@ function build() {
 		/* a zone-1 root: this is parented to <body>, outside the <nav> that carries the theme's
 		 * mark, so without it the fence against foreign CSS does not cover the bar */
 		'data-fs-chrome': '',
-		'role': 'dialog', 'aria-label': 'Command line', 'hidden': ''
+		'role': 'dialog', 'aria-label': _('Command line'), 'hidden': ''
 	}, [ _out, _hint, E('div', { 'class': 'fs-pal-line' }, [ _input ]) ]);
 	document.body.appendChild(_root);
 
@@ -153,11 +182,21 @@ function build() {
 	document.addEventListener('pointerdown', (ev) => {
 		if (_root && !_root.hidden && !_root.contains(ev.target)) close();
 	});
+
+	/* A bar left open rides a Back or a Forward onto the next page, still showing the previous
+	 * page's output, and the answer to a command started there would print over it. The theme's
+	 * own palette closes on the same signal and for the same reason. */
+	router.onNavigate(() => close(false));
 }
 
 function open() {
 	if (!_root) build();
+	/* only a real element, and never the bar's own input: reopening must not make the bar the
+	 * thing the bar returns to */
+	const a = document.activeElement;
+	_returnTo = (a && a !== document.body && a !== _input && document.contains(a)) ? a : null;
 	_hist = histAll();
+	_view = _hist;
 	_at = -1;
 	_draft = '';
 	_gen++;
@@ -169,6 +208,11 @@ function open() {
 	_input.focus();
 	_input.setSelectionRange(1, 1);
 	refresh();
+	/* `rc list` may still be in flight on the first colon; the candidate strip is empty until it
+	 * lands and there is nothing else to redraw it. Guarded by the generation so a slow answer
+	 * cannot repaint a bar that has since been closed and reopened. */
+	const mine = _gen;
+	commands.ready.then(() => { if (mine === _gen && _root && !_root.hidden) refresh(); });
 }
 
 function close(returnFocus = true) {
@@ -178,7 +222,16 @@ function close(returnFocus = true) {
 	echo('');
 	_rows = null;
 	drawHint();
-	if (returnFocus && document.activeElement === _input) _input.blur();
+	/* Focus has to go somewhere deliberate. Leaving it on the hidden input drops it to <body> and
+	 * costs a keyboard reader their place on the page; `returnFocus === false` is for the paths
+	 * that are about to move focus themselves (a navigation). */
+	if (returnFocus && document.activeElement === _input) {
+		if (_returnTo && document.contains(_returnTo)) {
+			try { _returnTo.focus({ preventScroll: true }); } catch (e) { _input.blur(); }
+		}
+		else _input.blur();
+	}
+	_returnTo = null;
 }
 
 return baseclass.extend({ open, close });
