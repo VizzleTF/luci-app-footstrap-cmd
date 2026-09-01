@@ -56,7 +56,9 @@ rootof() {
 	echo "$1"
 }
 
-for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-cmd*' \) | sort); do
+# Only the containers. A release directory is FLAT and carries a detached `.sig` beside every
+# artifact, so a name-prefix match alone hands this loop signatures to unpack.
+for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-cmd*.apk' -o -name 'luci-app-footstrap-cmd*.ipk' \) | sort); do
 	base=$(basename "$pkg")
 	echo
 	echo "##### $base"
