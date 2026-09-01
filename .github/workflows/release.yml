@@ -33,14 +33,14 @@ jobs:
     timeout-minutes: 20
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # tools/stage.sh falls back to `git describe` when FOOTSTRAP_VERSION is unset, and a
           # shallow clone has no tags to describe from.
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
 
       - uses: owfeed/owfeed/setup@v0.5.1
         with:
@@ -66,7 +66,7 @@ jobs:
       # A build that quietly produced nothing is the one failure an artifact upload can catch for
       # free, and `if-no-files-found: error` is what makes it fail rather than publish an empty
       # release.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: packages
           path: |

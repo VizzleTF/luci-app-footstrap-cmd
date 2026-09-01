@@ -31,10 +31,10 @@ jobs:
     name: parse, and parse again after jsmin
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
       # tools/t0.sh fetches jsmin.c at the commit in luci-upstream.pin and verifies its sha256
       # before compiling it, so no luci checkout is needed here.
       - run: tools/t0.sh
@@ -43,7 +43,7 @@ jobs:
     name: the catalogue is current and complete
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: install gettext
         run: sudo apt-get update && sudo apt-get install -y gettext
       # --check changes nothing: it fails on a stale .pot or an untranslated string. The scanner is
@@ -55,7 +55,7 @@ jobs:
     name: the Makefile's load-bearing lines are still there
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: LUCI_MINIFY_CSS:=0
         # Without it luci.mk runs csstidy, which predates @layer by fifteen years: measured on this
         # package's sheet, 3851 bytes in, 1327 out, exit 0, with the @layer wrapper and the .fs-pal
@@ -89,7 +89,7 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - run: |
