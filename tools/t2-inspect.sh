@@ -3,6 +3,11 @@
 #
 # Everything here is invisible to `owlab sync`, which copies the source tree and never runs
 # Build/Prepare — so every one of these is a claim that had no gate at all until now.
+# shellcheck disable=SC2319
+# SC2319 fires on every `[ test ]; ok $? "label"` below. The pattern is deliberate and correct:
+# `ok` is called immediately after the test and reads its status, which is exactly what it is for.
+# Rewriting each into if/then/else would triple the length of a file whose whole job is to be a
+# readable list of assertions.
 set -u
 DIST="${1:-/tmp/pal-dist}"
 WORK=$(mktemp -d)
@@ -116,11 +121,11 @@ for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-palette*' \) | so
 
 	case "$CTRL" in
 		*upgrade*) ok 0 "  postrm guards on *upgrade*" ;;
-		*) [ -z "$CTRL" ] && ok 1 "  postrm present" || ok 1 "  postrm guards on *upgrade*" ;;
+		*) if [ -z "$CTRL" ]; then ok 1 "  postrm present"; else ok 1 "  postrm guards on *upgrade*"; fi ;;
 	esac
 	case "$CTRLI" in
 		*"rpcd reload"*) ok 0 "  postinst reloads rpcd" ;;
-		*) [ -z "$CTRLI" ] && ok 1 "  postinst present" || ok 1 "  postinst reloads rpcd" ;;
+		*) if [ -z "$CTRLI" ]; then ok 1 "  postinst present"; else ok 1 "  postinst reloads rpcd"; fi ;;
 	esac
 done
 
@@ -140,4 +145,4 @@ fi
 
 echo
 echo "$pass passed, $fail failed"
-exit $([ "$fail" = 0 ] && echo 0 || echo 1)
+[ "$fail" = 0 ]

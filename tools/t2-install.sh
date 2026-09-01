@@ -11,6 +11,11 @@
 #                      the upgraded package installed and doing nothing. apk never does this, which
 #                      is why one package manager cannot stand in for the other.
 #   3. remove        — the plugin must be de-registered, and the files gone
+# shellcheck disable=SC2319
+# SC2319 fires on every `[ test ]; ok $? "label"` below. The pattern is deliberate and correct:
+# `ok` is called immediately after the test and reads its status, which is exactly what it is for.
+# Rewriting each into if/then/else would triple the length of a file whose whole job is to be a
+# readable list of assertions.
 set -u
 C="$1"; PKG="$2"; PM="$3"
 base=$(basename "$PKG")
@@ -29,8 +34,15 @@ installed() { case "$PM" in apk) R "apk list -I 2>/dev/null | grep -c luci-app-f
 echo "===== $C ($PM) <- $base ====="
 docker cp "$PKG" "$C:/tmp/$base" >/dev/null || { echo "cannot copy package into $C"; exit 2; }
 
-# a stand synced from the working tree already has the files and the registration; start clean so
-# the install is what puts them there
+# Start from "not installed", whatever the router was left in. Removing the PACKAGE and not just
+# its files is the part that matters: with the same version already present both managers answer
+# "up to date" and do nothing, uci-defaults never runs, and every assertion below then fails for a
+# reason that has nothing to do with the package. A stand synced from the working tree also has
+# the files and the registration without the package, so both are cleared.
+case "$PM" in
+	apk) R 'apk del luci-app-footstrap-palette' >/dev/null 2>&1 ;;
+	*)   R 'opkg remove luci-app-footstrap-palette' >/dev/null 2>&1 ;;
+esac
 R 'uci -q delete footstrap.settings.plugin >/dev/null 2>&1; uci -q commit footstrap; rm -rf /www/luci-static/footstrap-palette /www/luci-static/resources/fs-palette*.js /etc/uci-defaults/40_luci-app-footstrap-palette' >/dev/null
 
 case "$PM" in
@@ -65,7 +77,9 @@ case " $p " in
 	*) ok 1 "plugin still registered after an upgrade" "postrm de-registered it: [$p]" ;;
 esac
 # and exactly once: an add_list that is not idempotent lists it twice and the chrome requires it twice
-n=$(printf '%s\n' $p | grep -c '^fs-palette$')
+# split on spaces DELIBERATELY, one name per line, so the count is of whole tokens; quoting
+# "$p" here would put the whole list on one line and the count would always be 0
+n=$(printf '%s' "$p" | tr ' ' '\n' | grep -c '^fs-palette$')
 [ "$n" = 1 ]; ok $? "listed exactly once, not duplicated  [$p]"
 
 # opkg only runs the old postrm with "upgrade" when the version actually differs, and a re-install
@@ -96,4 +110,4 @@ esac
 
 echo
 echo "$C: $pass passed, $fail failed"
-exit $([ "$fail" = 0 ] && echo 0 || echo 1)
+[ "$fail" = 0 ]

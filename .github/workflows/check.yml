@@ -1,0 +1,97 @@
+# The gates that need no router.
+#
+# T1 (a browser against a live LuCI) and T2 (a real package build, installed with both package
+# managers) are NOT here, and that is a statement rather than an omission: both need docker and
+# owlab, and a workflow that pretended to run them would be worse than one that says where the
+# line is. They are run by hand — see CLAUDE.md, "Verifying" — with tools/probe.mjs,
+# tools/t2-inspect.sh and tools/t2-install.sh.
+#
+# What IS here is everything that can fail silently:
+#
+#   * jsmin eats the rest of a file after a regex literal following `return` or `=>` and exits 0;
+#   * csstidy drops this package's whole @layer block, also exiting 0, unless LUCI_MINIFY_CSS:=0;
+#   * an uncompiled _() renders in English with nothing reporting it;
+#   * a missing `call BuildPackage` literal drops the package out of the SDK's list.
+
+name: check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  t0:
+    name: parse, and parse again after jsmin
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # tools/t0.sh fetches jsmin.c at the commit in luci-upstream.pin and verifies its sha256
+      # before compiling it, so no luci checkout is needed here.
+      - run: tools/t0.sh
+
+  i18n:
+    name: the catalogue is current and complete
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: install gettext
+        run: sudo apt-get update && sudo apt-get install -y gettext
+      # --check changes nothing: it fails on a stale .pot or an untranslated string. The scanner is
+      # downloaded at the pin and checksummed before perl runs it.
+      - run: ./update-po.sh --check
+        working-directory: luci-app-footstrap-palette
+
+  makefile:
+    name: the Makefile's load-bearing lines are still there
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: LUCI_MINIFY_CSS:=0
+        # Without it luci.mk runs csstidy, which predates @layer by fifteen years: measured on this
+        # package's sheet, 3851 bytes in, 1327 out, exit 0, with the @layer wrapper and the .fs-pal
+        # rule inside it gone. The bar then renders as an unstyled block and nothing reports it.
+        run: grep -qF 'LUCI_MINIFY_CSS:=0' luci-app-footstrap-palette/Makefile
+
+      - name: the BuildPackage marker
+        # include/scan.mk builds the package list by GREPPING Makefiles for `call BuildPackage`.
+        # luci.mk calls it, but the grep cannot see that, so the literal in a comment is what puts
+        # this package into the SDK's list. It reads like boilerplate and it is not.
+        run: grep -qF 'call BuildPackage' luci-app-footstrap-palette/Makefile
+
+      - name: the postrm upgrade guard
+        # opkg runs the OLD package's postrm with "upgrade" mid-upgrade; without the guard the
+        # plugin is de-registered there and the upgraded package is installed and inert.
+        # -F: the pattern is a literal with three glob characters in it, and letting grep read
+        # them as a regex is how this check silently passed on nothing when it was first written.
+        run: grep -qF 'case "$$1" in *upgrade*)' luci-app-footstrap-palette/Makefile
+
+      - name: no acl.d of our own
+        # Every command is gated on a menu node the session already holds. A grant here would hand
+        # every holder of this package's group a permission their LuCI account was never given —
+        # adding one is a security change, not a judgement call.
+        run: |
+          if find luci-app-footstrap-palette -path '*rpcd/acl.d*' -name '*.json' | grep -q .; then
+            echo "This package must ship no acl.d file. See CLAUDE.md." >&2
+            exit 1
+          fi
+
+  shell:
+    name: shellcheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - run: |
+          shellcheck -s sh \
+            luci-app-footstrap-palette/root/etc/uci-defaults/* \
+            luci-app-footstrap-palette/update-po.sh \
+            tools/*.sh
