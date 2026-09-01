@@ -74,11 +74,12 @@ for f in "$PKG"/root/etc/uci-defaults/* "$PKG"/update-po.sh tools/*.sh; do
 	ok $? "  $(basename "$f") parses"
 done
 
-# ---- the probe --------------------------------------------------------------
-if [ -f tools/probe.mjs ]; then
-	node --check tools/probe.mjs 2>/dev/null
-	ok $? "  probe.mjs parses"
-fi
+# ---- the probes -------------------------------------------------------------
+for f in tools/*.mjs; do
+	[ -f "$f" ] || continue
+	node --check "$f" 2>/dev/null
+	ok $? "  $(basename "$f") parses"
+done
 
 echo
 echo "$pass passed, $fail failed"

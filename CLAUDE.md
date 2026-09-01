@@ -361,7 +361,10 @@ No npm gate suite here yet. What must hold before a change is called done:
     `sh /usr/lib/opkg/info/luci-app-footstrap-palette.postrm upgrade` directly — it must exit 0 and
     leave the registration alone, while `… postrm remove` must clear it.
   - **`owlab build -out` copies out only the NAMED package**, so `luci-i18n-footstrap-palette-ru`
-    never reaches `dist/` even though the SDK builds it. The proof is in the build log (`po2lmo`,
+    never reaches `dist/` even though the SDK builds it. Confirmed by building the same tree in the
+    SDK image by hand, which emits both `luci-app-footstrap-palette_0.1.0-r1_all.ipk` and
+    `luci-i18n-footstrap-palette-ru_0.260901.24779_all.ipk`; the i18n package's own version is
+    derived from `po/` separately and is NOT pinned by `FOOTSTRAP_VERSION`. The proof is in the build log (`po2lmo`,
     `footstrap-palette.ru.lmo`), which is what `T2_BUILD_LOG` points the inspector at. Not a defect
     — but the log has to be the FULL one: a build script that pipes owlab through `tail` cuts the
     po2lmo line and the inspector then reports a regression that is its own.
@@ -388,14 +391,24 @@ that action, each time** — finished work and green checks are not authorizatio
 Feature-complete for the commands it ships and green on T0 and T1. Known gaps, in the order they
 matter:
 
-- **No CI, no `package.json`/eslint config.** T0, T1 and T2 are all scripts run by hand; nothing
-  runs them on a push. `tools/probe.mjs` borrows playwright from the theme's checkout because this
-  package has no `node_modules` of its own.
-- **No release stream.** No tag, so `findrev` falls back to an mtime-derived `0.<date>.<n>` that
-  differs between builds; no feed, no `install.sh`, no CHANGELOG. JS is checked by parser and by jsmin round-trip only;
+- **CI runs T0 and the catalogue gate only.** T1 needs a browser against a live LuCI and T2 a real
+  package build with both managers; both need docker and owlab, so both are run by hand. The
+  workflow says so rather than pretending. `tools/probe.mjs` borrows playwright from the theme's
+  checkout because this package has no `node_modules` of its own.
+- **The version is not stable across builds, and a tag does not fix it.** `luci.mk`'s `findrev`
+  reads `git log -1 --format="%ct %h"` — the last COMMIT's timestamp and hash, never a tag — and
+  falls back to file mtimes when there is no `.git`, which is the case inside `owlab build`: the
+  package is copied into the SDK container without it. So an owlab build is `0.<yymmdd>.<secs>` and
+  differs run to run. `FOOTSTRAP_VERSION` is the only way to pin a release version and whatever
+  builds a release has to set it; `owlab build` does not forward it into the container, so a
+  release cannot be cut through owlab.
+- **No feed and no `install.sh`.** JS is checked by parser and by jsmin round-trip only;
   the theme's eslint config assumes its own globals and paths.
-- **`po/ru` only.** The catalogue is complete (85/85) and `./update-po.sh --check` gates it, but
-  every other language falls through to English.
+- **`po/ru` only.** The catalogue is complete (93/93), `./update-po.sh --check` gates it, and
+  `tools/i18n-probe.mjs` proves it is actually loaded on a router — 806 Cyrillic characters in
+  `:help` with the ru package installed, which reading the files cannot settle because an
+  uncompiled `_()` falls through to its English msgid in silence. Every other language falls
+  through to English.
 - **The command table is a constant**, not something a third package could extend.
 - **No cancellation.** `:ping` runs for three seconds and `:trace` longer; Escape discards the
   ANSWER (the generation counter) but the tool keeps running on the router. Nothing that takes
