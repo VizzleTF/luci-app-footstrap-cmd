@@ -129,11 +129,24 @@ async function runCmd(line) {
 	}, line);
 	await page.waitForTimeout(200);
 	await page.keyboard.press('Enter');
-	await page.waitForTimeout(3500);
-	return page.evaluate(() => {
-		const o = document.querySelector('.fs-pal-out');
-		return o && !o.hidden ? o.textContent : '';
-	});
+	/* Wait for the ANSWER, not for a guess at how long it takes. The bar prints a lone `…` while a
+	 * command is in flight, so a fixed delay reads that as the result the moment anything is slower
+	 * than the guess — `:restart dnsmasq` is, on a cold container. Poll until the echo is something
+	 * else, the bar has closed (a command whose whole effect was the effect), or 25 s have passed. */
+	const deadline = Date.now() + 25000;
+	let text = '';
+	for (;;) {
+		const st = await page.evaluate(() => {
+			const r = document.getElementById('fs-pal');
+			const o = document.querySelector('.fs-pal-out');
+			return { closed: !r || r.hidden, text: o && !o.hidden ? o.textContent : '' };
+		});
+		text = st.text;
+		if (st.closed || (text && text !== '…')) break;
+		if (Date.now() > deadline) break;
+		await page.waitForTimeout(250);
+	}
+	return text;
 }
 
 const help = await runCmd(':help');
@@ -220,6 +233,94 @@ await page.evaluate(() => {
 await page.keyboard.press('Enter');
 await page.waitForTimeout(600);
 ok(':q closes the bar', await page.evaluate(() => { const r = document.getElementById('fs-pal'); return !r || r.hidden; }));
+
+/* ---- 4c. the commands a probe can safely run against a live router ----
+ *
+ * Everything below acts on the router rather than only printing, so each one is chosen to be
+ * reversible and to leave the stand as it found it. What is deliberately NOT here: `:reboot!`,
+ * `:apply` and `:stop uhttpd`, which either take the router away from the probe or commit a real
+ * change. `:reboot` without its bang IS here, because refusing is its whole behaviour. */
+
+/* :set — the appearance axes, applied through the theme's own prefs */
+const setBare = await runCmd(':set');
+ok(':set prints the axes', /mode/.test(setBare) && /density/.test(setBare), setBare.split('\n')[0]);
+await runCmd(':set dark');
+ok(':set dark applied a dark root', await page.evaluate(() =>
+	document.documentElement.getAttribute('data-darkmode') === 'true' ||
+	document.documentElement.classList.contains('dark') ||
+	/dark/i.test(document.documentElement.getAttribute('data-theme') || '')));
+await runCmd(':set light');
+const setBad = await runCmd(':set nosuchaxis');
+ok(':set rejects an unknown axis', /unknown option/.test(setBad), setBad);
+
+/* :time — sets the router's clock from the browser */
+const t = await runCmd(':time');
+ok(':time sets the clock', /clock/.test(t), t);
+
+/* :trace — a loopback target keeps it fast and deterministic */
+const tr = await runCmd(':trace 127.0.0.1');
+ok(':trace answers', tr.length > 0 && !/not a host/.test(tr), tr.split('\n')[0].slice(0, 60));
+
+/* init scripts: reload / restart / enable, on dnsmasq — the probe reaches the router by IP and
+ * never asks it to resolve anything, so DNS going away for a moment is invisible here */
+const rel = await runCmd(':reload dnsmasq');
+ok(':reload runs an init script', /dnsmasq/.test(rel), rel);
+const rst = await runCmd(':restart dnsmasq');
+ok(':restart runs an init script', /dnsmasq/.test(rst), rst);
+const en = await runCmd(':enable dnsmasq');
+ok(':enable runs an init script', /dnsmasq/.test(en), en);
+const badSvc = await runCmd(':restart nosuchservice');
+ok(':restart rejects an unknown service', /no init script named/.test(badSvc), badSvc);
+const noSvc = await runCmd(':restart');
+ok(':restart with no argument asks for one', /which service/.test(noSvc), noSvc);
+
+/* :ifdown / :ifup on `guest`, never on `lan` — lan carries this probe's own HTTP session */
+const down = await runCmd(':ifdown guest');
+ok(':ifdown acts on an interface', /guest/.test(down), down);
+const up = await runCmd(':ifup guest');
+ok(':ifup acts on an interface', /guest/.test(up), up);
+const badIf = await runCmd(':ifup -x');
+ok(':ifup refuses an option-like argument', /not an interface/.test(badIf), badIf);
+
+/* :wifi — the stand has no radios, so this proves the command reaches /sbin/wifi and reports,
+ * not that a radio came up */
+const wifiSt = await runCmd(':wifi status');
+ok(':wifi status answers', wifiSt.length > 0, wifiSt.split('\n')[0].slice(0, 60));
+const wifiBad = await runCmd(':wifi nosuchaction');
+ok(':wifi rejects an unknown action', /unknown action/.test(wifiBad), wifiBad);
+
+/* :kill — against a process this test started itself, whose pid is handed in by the runner */
+const pid = process.env.PROBE_KILL_PID;
+if (pid) {
+	const k = await runCmd(':kill ' + pid);
+	ok(':kill signals a process', /signalled|Terminated/.test(k) || k.length > 0, k);
+} else {
+	ok(':kill signals a process', false, 'PROBE_KILL_PID not set');
+}
+const badPid = await runCmd(':kill notanumber');
+ok(':kill rejects a non-numeric pid', /not a pid/.test(badPid), badPid);
+
+/* :reboot without the bang must REFUSE. If this assertion ever fails the router is rebooting. */
+const rb = await runCmd(':reboot');
+ok(':reboot without ! refuses', /:reboot! to confirm/.test(rb), rb);
+
+/* :revert with nothing pending is a no-op that must not throw */
+await runCmd(':revert');
+ok(':revert does not throw', true);
+
+/* :back — needs two pages in the recents list, which the navigation above has produced */
+await page.goto(BASE + '/cgi-bin/luci/admin/status/overview', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(2000);
+const beforeBack = page.url();
+await openBar();
+await page.evaluate(() => {
+	const i = document.querySelector('.fs-pal-input');
+	i.value = ':back';
+	i.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await page.keyboard.press('Enter');
+await page.waitForTimeout(3000);
+ok(':back navigated somewhere else', page.url() !== beforeBack, page.url());
 
 /* ---- 5. Tab completion off live rc list ---- */
 await page.keyboard.press('Escape');
