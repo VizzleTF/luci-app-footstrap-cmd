@@ -5,21 +5,30 @@
 # else about any of them: the edge points inwards, so the theme never names this package and this
 # package needs no patch to the theme to be installed or removed.
 #
-# `footstrap.settings` is created by the theme's own uci-defaults, which luci.mk runs before this
-# one only if the theme is already installed — it is a hard dependency, but an install ORDER is not
-# guaranteed, so the section is created here when it is missing rather than assumed.
+# `footstrap.settings` is created by the theme's own uci-defaults and /etc/config/footstrap is
+# shipped by the theme as a stub, which luci.mk runs before this one only if the theme is already
+# installed — it is a hard dependency, but an install ORDER is not guaranteed, so both the file and
+# the section are created here when missing rather than assumed. `uci set` on a package whose
+# config file does not exist fails with "Entry not found", and `-q` would swallow that: the whole
+# script would then appear to succeed and register nothing.
 [ -n "$IPKG_INSTROOT" ] && exit 0
 
-uci -q get footstrap.settings >/dev/null || {
-	uci -q set footstrap.settings=footstrap
-}
+[ -f /etc/config/footstrap ] || touch /etc/config/footstrap
+uci -q get footstrap.settings >/dev/null || uci -q set footstrap.settings=footstrap
 
 # Idempotent: uci add_list appends unconditionally, so a reinstall would list the module twice and
 # the chrome would require it twice (harmless, but the config would read as broken).
-if ! uci -q get footstrap.settings.plugin | grep -qw fs-palette; then
-	uci -q add_list footstrap.settings.plugin=fs-palette
-	uci -q commit footstrap
-fi
+#
+# Matched as a whole space-delimited token. `grep -qw` was wrong here: `-w` treats `-` as a word
+# boundary, so a list holding `fs-palette-extra` and NOT `fs-palette` matched, the add_list was
+# skipped and the package registered nothing at all.
+case " $(uci -q get footstrap.settings.plugin) " in
+	*" fs-palette "*) ;;
+	*)
+		uci -q add_list footstrap.settings.plugin=fs-palette
+		uci -q commit footstrap
+		;;
+esac
 
 # The dispatcher caches the menu and the module list per boot; both are rebuilt from mtimes, but the
 # browser's copy of the assets is keyed on the package database, which this install has just moved.
