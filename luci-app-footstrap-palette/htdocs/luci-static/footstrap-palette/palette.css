@@ -1,0 +1,124 @@
+/* luci-app-footstrap-palette — the command line.
+ *
+ * Loaded by fs-palette.js as its own <link>: the theme's cascade.css is concatenated from the
+ * theme's styles/ tree at package time and nothing outside that tree can join it.
+ *
+ * @layer theme, so the theme's own rules and this one are in the same layer and a foreign app's
+ * unlayered CSS cannot outrank either — the theme states the layer order in its cascade.css and an
+ * @layer name that has already been declared keeps its place in it.
+ *
+ * The Makefile sets LUCI_MINIFY_CSS:=0 because csstidy drops this file's @layer block whole; see
+ * there for the measurement.
+ *
+ * ---- why every token carries a fallback ----
+ *
+ * `--fs-*` is the theme's PRIVATE tier and its names do not survive a package build. The theme's
+ * mangle-tokens.sh renames them to `--a`, `--b`, … and derives the reserved set by scanning the
+ * THEME's own htdocs/luci-static/resources and ucode — which this package is not in. Measured
+ * against the theme at 0.14.5: of the 21 `--fs-*` names this sheet reads, 6 survive
+ * (--fs-accent, --fs-danger, --fs-font-mono, --fs-font-sans, --fs-space-4, --fs-text) because the
+ * theme's own JS happens to mention them, and 15 do not. On a dev stand nothing is mangled, so the
+ * failure is invisible exactly where it would be caught.
+ *
+ * So each var() names the private token FIRST — a dev build, and any name the theme later reserves,
+ * resolves through it exactly — and falls back to:
+ *
+ *   * for colour, the theme's EXPORT TIER (`--background-color-*`, `--border-color-*`,
+ *     `--text-color-*`). That is the documented outbound contract with third-party apps
+ *     (docs/third-party-apps.md, rule 6), it is a different prefix and mangle-tokens.sh does not
+ *     touch it, and it follows the palette, the tint and dark mode the same way the private token
+ *     does. The mapping is the theme's own: `--background-color-high: var(--fs-panel)`,
+ *     `--border-color-medium: var(--fs-border)`, `--text-color-low: var(--fs-faint)`.
+ *   * for everything else, the theme's own value at density 1, read from its styles/ tree. A
+ *     literal cannot follow the density axes, so a mangled build renders the bar at normal density
+ *     whatever the reader chose. That is a visible degradation and not a broken bar, which is the
+ *     trade the export tier does not offer: there is no public tier for space or type. */
+@layer theme {
+	.fs-pal {
+		position: fixed; inset: auto 0 0 0;
+		z-index: var(--fs-z-popover, 850);
+		display: flex; flex-direction: column;
+		background: var(--fs-glass, var(--background-color-high));
+		backdrop-filter: var(--fs-blur, blur(12px));
+		-webkit-backdrop-filter: var(--fs-blur, blur(12px));
+		border-block-start: var(--fs-hairline, 1px solid var(--border-color-medium));
+		box-shadow: var(--fs-shadow-pop, 0 12px 34px rgba(0, 0, 0, .30));
+		font-family: var(--fs-font-mono);
+		font-size: var(--fs-type, 13px);
+	}
+
+	/* The echo area, capped and scrollable: `:services` prints 44 rows on a stock router and
+	 * `:log` 40, and a fixed element cannot be scrolled by the page around it. */
+	.fs-pal-out {
+		max-height: min(40dvh, 380px); overflow: auto;
+		margin: 0; padding: var(--fs-space-3, 12px) var(--fs-space-4);
+		border-block-end: var(--fs-hairline, 1px solid var(--border-color-medium));
+		color: var(--fs-text);
+		font-family: inherit; font-size: inherit; line-height: 1.5;
+		white-space: pre; tab-size: 4;
+	}
+	.fs-pal-out.bad { color: var(--fs-danger); }
+
+	/* vim's wildmenu: the candidates on one wrapping row, with the current one's help text last. */
+	.fs-pal-hint {
+		display: flex; flex-wrap: wrap; align-items: baseline;
+		gap: var(--fs-space-1, 4px) var(--fs-space-2, 8px);
+		padding: var(--fs-space-2, 8px) var(--fs-space-4);
+		border-block-end: var(--fs-hairline, 1px solid var(--border-color-medium));
+		color: var(--fs-faint, var(--text-color-low));
+	}
+
+	/* A candidate is a button, so it is reachable by pointer as well as by Tab. `appearance: none`
+	 * and the resets below because the theme's own button rules would otherwise paint a control
+	 * inside a strip that is a list of words. */
+	.fs-pal-cand {
+		appearance: none; -webkit-appearance: none;
+		margin: 0; border: 0; background: transparent;
+		min-height: 0;
+		padding: 0 var(--fs-space-1, 4px);
+		border-radius: var(--fs-radius-sm, 8px);
+		color: inherit; font: inherit; line-height: inherit;
+		cursor: pointer;
+	}
+	.fs-pal-cand.active { background: var(--fs-accent-soft, transparent); color: var(--fs-accent); }
+	.fs-pal-help {
+		flex: 1 1 100%;
+		color: var(--fs-faint, var(--text-color-low));
+		font-family: var(--fs-font-sans);
+		font-size: var(--fs-type-xs, 11px);
+	}
+
+	/* What a section result leaves behind after it has taken you there: the theme's accent, fading
+	 * out. Not a permanent mark and not a scroll alone — arriving at the Logging tab of a page full
+	 * of tabs, with nothing saying which one was asked for, reads as having landed in the wrong
+	 * place. `outline` rather than a border or a background: it takes no layout space, so nothing
+	 * on the page moves as it fades. */
+	.fs-pal-flash {
+		animation: fs-pal-flash 1.4s ease-out;
+		border-radius: var(--fs-radius-sm, 8px);
+	}
+	@keyframes fs-pal-flash {
+		from { outline: 2px solid var(--fs-accent); outline-offset: 3px; }
+		to   { outline: 2px solid transparent; outline-offset: 3px; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.fs-pal-flash { animation-duration: 1ms; }
+	}
+
+	.fs-pal-line {
+		display: flex; align-items: center;
+		padding: var(--fs-space-2-5, 10px) var(--fs-space-4);
+	}
+
+	/* Two classes deep on purpose: the theme's generic field box is `input[type="text"], …`
+	 * (0,1,1) and outranks a single class in the same layer whatever the source order, which would
+	 * paint a frame, a fill and a focus ring inside a bar that IS the field. 16px so iOS Safari
+	 * does not zoom the page when the field takes focus, which it does the moment `:` is pressed. */
+	.fs-pal-line .fs-pal-input {
+		flex: 1 1 auto; min-width: 0;
+		margin: 0; padding: 0; border: 0; min-height: 0; background: transparent;
+		color: var(--fs-text);
+		font-family: inherit; font-size: var(--fs-type-lg, 16px); line-height: 1.4;
+	}
+	.fs-pal-line .fs-pal-input:focus { outline: none; box-shadow: none; }
+}

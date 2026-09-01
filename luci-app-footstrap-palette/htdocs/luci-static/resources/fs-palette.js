@@ -16,14 +16,40 @@
 
 /* This package's stylesheet is loaded by this package: the theme's cascade.css is concatenated
  * from its own styles/ tree at package time and nothing outside that tree can join it.
- * data-fs-chrome marks the link as zone-1 so the theme's fence covers what it paints. */
+ *
+ * `data-fs-shell` is load-bearing and it is NOT the same attribute as `data-fs-chrome`. The theme
+ * treats every sheet in the document as a view's until told otherwise —
+ *
+ *   fs-sheets.js: const VIEW_SHEETS =
+ *     'style:not([data-fs-shell]), link[rel~="stylesheet"]:not([data-fs-shell])'
+ *
+ * — and its <head> observer is live before this runs (watchViewSheets() is first in the theme's
+ * init, loadPlugins() last). Without the mark the chain is: the observer sees the new <link>,
+ * judgeSheet() reads `el.sheet === null` on a sheet that has not loaded yet and rules it invasive,
+ * rehostIntoThemeLayer() silences the original and claims the @import shim for the page that
+ * happened to be open, and the next navigation calls scopeToCurrentPage(), which disables anything
+ * owned by another page. The bar then loses its styling for the life of the document, on the first
+ * navigation rather than at load, which is the hardest version of this to attribute.
+ *
+ * `data-fs-chrome` is a different seam with a different job: it marks a DOM ELEMENT as zone 1 so
+ * the theme's fence (`:where(:not([data-fs-chrome],[data-fs-chrome] *))`) exempts it from a foreign
+ * app's selectors. The bar itself carries it — see fs-palette-cmdline.js. On a <link> it does
+ * nothing at all.
+ *
+ * The `?v=` is this package's own: L.resource() does not add one (only LuCI's SubstituteVersion
+ * does, and it rewrites .ut and .htm templates, not a link built in JS), and every other asset on
+ * the page carries it. Without it a package upgrade ships new modules to a browser still holding
+ * the previous sheet. It is concatenated rather than passed to L.resource() as a query part,
+ * because L.path() filters a part against [a-zA-Z0-9_.%=&;-] and would silently drop the `~` a
+ * git-derived resource_version can carry. */
 function addStylesheet() {
 	if (document.getElementById('fs-palette-css')) return;
+	const v = L.env.resource_version;
 	document.head.appendChild(E('link', {
 		'id': 'fs-palette-css',
 		'rel': 'stylesheet',
-		'data-fs-chrome': '',
-		'href': L.resource('../palette/palette.css')
+		'data-fs-shell': '',
+		'href': L.resource('../footstrap-palette/palette.css') + (v ? '?v=' + encodeURIComponent(v) : '')
 	}));
 }
 
