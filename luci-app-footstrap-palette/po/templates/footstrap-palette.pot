@@ -29,11 +29,15 @@ msgstr ""
 msgid "CPU"
 msgstr ""
 
-#: htdocs/luci-static/resources/fs-palette-cmdline.js:149
+#: htdocs/luci-static/resources/fs-palette-cmdline.js:163
+msgid "Candidates"
+msgstr ""
+
+#: htdocs/luci-static/resources/fs-palette-cmdline.js:167
 msgid "Command"
 msgstr ""
 
-#: htdocs/luci-static/resources/fs-palette-cmdline.js:157
+#: htdocs/luci-static/resources/fs-palette-cmdline.js:182
 msgid "Command line"
 msgstr ""
 

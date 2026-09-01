@@ -59,13 +59,19 @@
 	}
 	.fs-pal-out.bad { color: var(--fs-danger); }
 
-	/* vim's wildmenu: the candidates on one wrapping row, with the current one's help text last. */
+	/* vim's wildmenu: the candidates on one wrapping row, with the current one's help text under it.
+	 *
+	 * Two elements rather than one because the candidate strip is a `role="listbox"`, and a listbox
+	 * whose children are not all options is an invalid tree — the help line is a sibling of the
+	 * list, not a member of it. */
 	.fs-pal-hint {
-		display: flex; flex-wrap: wrap; align-items: baseline;
-		gap: var(--fs-space-1, 4px) var(--fs-space-2, 8px);
 		padding: var(--fs-space-2, 8px) var(--fs-space-4);
 		border-block-end: var(--fs-hairline, 1px solid var(--border-color-medium));
 		color: var(--fs-faint, var(--text-color-low));
+	}
+	.fs-pal-cands {
+		display: flex; flex-wrap: wrap; align-items: baseline;
+		gap: var(--fs-space-1, 4px) var(--fs-space-2, 8px);
 	}
 
 	/* A candidate is a button, so it is reachable by pointer as well as by Tab. `appearance: none`
@@ -82,11 +88,12 @@
 	}
 	.fs-pal-cand.active { background: var(--fs-accent-soft, transparent); color: var(--fs-accent); }
 	.fs-pal-help {
-		flex: 1 1 100%;
+		margin-block-start: var(--fs-space-1, 4px);
 		color: var(--fs-faint, var(--text-color-low));
 		font-family: var(--fs-font-sans);
 		font-size: var(--fs-type-xs, 11px);
 	}
+	.fs-pal-help:empty { display: none; }
 
 	/* What a section result leaves behind after it has taken you there: the theme's accent, fading
 	 * out. Not a permanent mark and not a scroll alone — arriving at the Logging tab of a page full

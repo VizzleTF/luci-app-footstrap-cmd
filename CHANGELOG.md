@@ -54,6 +54,20 @@ upgrade; only a 404 is a permanent miss now. The source harvest could overwrite 
 harvest. A hung fetch stalled the queue forever. `jobs()` was documented as walked once and was not
 memoised.
 
+### Fixed — pages that were indexed and never findable
+
+`jobs()` tested `action.type === 'view'`, but Status → Overview is a `template` action pointing at
+`admin_status/index`. It was therefore not in the index, so its sections were harvested from the
+DOM on every visit, written to `localStorage`, and returned by no search. It now asks the theme —
+`tree.viewClassFor(node)` — which is the same answer the router uses to decide what it can render.
+
+### Added — the command line is usable with a screen reader
+
+The candidate strip existed only visually: no role, and Tab appeared to change the field's value
+for no announced reason. The input is a `combobox` over a `listbox` now, with `aria-expanded` and
+`aria-activedescendant` tracking the cycled candidate, and the help line moved out of the list —
+a listbox whose children are not all options is an invalid tree.
+
 ### Fixed — the command line
 
 Closes on navigation (it used to ride a Back onto the next page still showing the previous page's
@@ -76,7 +90,7 @@ package does not already inherit. **This package still ships no `acl.d` of its o
   boundary, so `fs-palette-anything` counted as `fs-palette` and the registration was skipped) and
   creates `/etc/config/footstrap` when the theme has not got there first.
 - `po/`, with a complete Russian catalogue (93 strings) and `update-po.sh --check` as the gate.
-- `tools/t0.sh`, `tools/probe.mjs` (62 assertions against a live router), `tools/i18n-probe.mjs`,
+- `tools/t0.sh`, `tools/probe.mjs` (67 assertions against a live router), `tools/i18n-probe.mjs`,
   `tools/t2-inspect.sh`, `tools/t2-install.sh`, `owlab.yaml` with a router per package manager,
   and a CI workflow running T0, the catalogue gate, the Makefile's load-bearing lines and
   shellcheck.

@@ -342,6 +342,32 @@ await page.waitForTimeout(300);
 const afterTab = await page.evaluate(() => document.querySelector('.fs-pal-input').value);
 ok('Tab fills the line', /^:restart \S/.test(afterTab), afterTab);
 
+/* ---- 5b. the strip is a listbox, and the field says so ----
+ *
+ * Without this the candidate strip does not exist for a screen reader and Tab appears to change
+ * the field's value for no announced reason. Checked on the live DOM rather than in the source,
+ * because the shape only holds once drawHint() has run. */
+const aria = await page.evaluate(() => {
+	const i = document.querySelector('.fs-pal-input');
+	const l = document.getElementById('fs-pal-list');
+	const opts = Array.from(document.querySelectorAll('.fs-pal-cand'));
+	return {
+		role: i.getAttribute('role'),
+		controls: i.getAttribute('aria-controls'),
+		expanded: i.getAttribute('aria-expanded'),
+		active: i.getAttribute('aria-activedescendant'),
+		listRole: l && l.getAttribute('role'),
+		/* a listbox whose children are not all options is an invalid tree */
+		nonOptions: l ? Array.from(l.children).filter((c) => c.getAttribute('role') !== 'option').length : -1,
+		optRoles: opts.length && opts.every((o) => o.getAttribute('role') === 'option'),
+		selected: opts.filter((o) => o.getAttribute('aria-selected') === 'true').length
+	};
+});
+ok('the input is a combobox over the list', aria.role === 'combobox' && aria.controls === 'fs-pal-list', JSON.stringify(aria));
+ok('the strip is a listbox of options only', aria.listRole === 'listbox' && aria.optRoles && aria.nonOptions === 0, JSON.stringify(aria));
+ok('aria-expanded is true while candidates show', aria.expanded === 'true', aria.expanded);
+ok('the Tab-cycled candidate is the active descendant', aria.active === 'fs-pal-cand-0' && aria.selected === 1, aria.active + ' selected=' + aria.selected);
+
 /* ---- 6. focus returns on close ---- */
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
@@ -352,6 +378,12 @@ ok('closing does not strand focus on the hidden input', !/fs-pal-input/.test(Str
 const stats = await page.evaluate(() => window.L.require('fs-palette-sections').then((m) => m.stats()));
 ok('section index has pages', stats.pages > 0, JSON.stringify(stats));
 ok('section index has rows', stats.rows > 0, stats.rows + ' rows');
+
+/* Status -> Overview is a `template` action, not a view. Testing action.type directly left it out
+ * of the index entirely, so its sections were harvested on every visit and never returned. */
+const overview = await page.evaluate(() => window.L.require('fs-palette-sections')
+	.then((m) => m.pages().filter((j) => j.path === 'admin/status/overview').length));
+ok('the template-action page is indexed too', overview === 1, 'admin/status/overview x' + overview);
 
 /* depth and trail have to agree with the theme's own walk, or ranking is off by a constant and
  * every trail is prefixed with the mode's title */

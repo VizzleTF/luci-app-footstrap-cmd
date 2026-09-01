@@ -60,6 +60,14 @@ Six seams, all of them the theme's, none of them naming this package:
 
 `fs-router.onNavigate` and `fs-menutree.nodeForSegs` are also used, both exported by the theme.
 
+**What counts as a page is the theme's answer, not ours.** `jobs()` calls `tree.viewClassFor(node)`
+rather than testing `action.type === 'view'`: Status → Overview is a `template` action pointing at
+`admin_status/index`, whose server template does nothing but instantiate `view.status.index`.
+Testing the action type left that page out of the index entirely, so its sections were harvested
+from the DOM on every visit, stored, and returned by no search. A theme too old to export
+`viewClassFor` falls back to the old test and loses that one page, which is what it lost before the
+seam existed.
+
 **The tree walk in `fs-palette-sections.js` is the theme's `fs-search.buildIndex()`, duplicated on
 purpose.** Both halves are ranked against each other by the same `search()`, so `depth` and `trail`
 have to mean the same thing on both sides: start INSIDE each mode (`admin` is a container, not a
@@ -292,7 +300,7 @@ No npm gate suite here yet. What must hold before a change is called done:
   each module through it, and `new Function()` the OUTPUT. jsmin eats the rest of a file after a
   regex literal that follows `return` or `=>` and **exits 0**, so a grep for the pattern is a
   weaker check than actually running the minifier the buildbot runs.
-- **T1** — a Playwright probe against `agent2512` (42 assertions as of 2026-09-01, all green):
+- **T1** — a Playwright probe against a stand (67 assertions as of 2026-09-01, all green):
   the plugin appears in `window.__fsPlugins`; the stylesheet is present, marked `data-fs-shell`,
   carries a `?v=`, and **is still enabled with a non-zero rule count after a navigation** (the
   assertion that catches both the sheet-rehosting trap and a csstidy-mangled sheet); the bar

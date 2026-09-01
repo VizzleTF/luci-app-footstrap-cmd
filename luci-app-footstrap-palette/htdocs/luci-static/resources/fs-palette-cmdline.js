@@ -15,7 +15,7 @@
  * Everything it knows about commands comes from fs-palette-commands: this file is the input, the
  * candidate strip, the echo area and the keys, and nothing else. */
 
-let _root = null, _input = null, _out = null, _hint = null;
+let _root = null, _input = null, _out = null, _hint = null, _list = null, _help = null;
 let _hist = [], _view = [], _at = -1, _draft = '';
 let _rows = null, _pick = -1;
 /* Where focus was when the bar opened, so closing it puts the reader back rather than on <body>.
@@ -53,13 +53,26 @@ function echo(text, bad) {
  * Each candidate is a <button>, not a <span>: the strip was keyboard-only, and a reader who had
  * found the row they wanted with the mouse had no way to take it. Taking one fills the line, and
  * submits it only when the line is complete — a command still waiting for an argument leaves the
- * bar open with the cursor after the space, which is what Tab does. */
+ * bar open with the cursor after the space, which is what Tab does.
+ *
+ * The listbox holds OPTIONS and nothing else: the help line is a sibling, because a listbox with a
+ * stray non-option child is an invalid tree and a screen reader is free to do anything with it.
+ * `aria-activedescendant` on the input is what announces the Tab-cycled candidate without moving
+ * focus off the field the user is typing in — the same shape the theme's own palette uses. */
 function drawHint() {
-	_hint.innerHTML = '';
-	if (!_rows || !_rows.length) { _hint.hidden = true; return; }
+	_list.innerHTML = '';
+	if (!_rows || !_rows.length) {
+		_hint.hidden = true;
+		_input.setAttribute('aria-expanded', 'false');
+		_input.removeAttribute('aria-activedescendant');
+		return;
+	}
 	_rows.slice(0, 40).forEach((r, i) => {
-		_hint.appendChild(E('button', {
+		_list.appendChild(E('button', {
 			'type': 'button',
+			'id': 'fs-pal-cand-' + i,
+			'role': 'option',
+			'aria-selected': i === _pick ? 'true' : 'false',
 			'class': 'fs-pal-cand' + (i === _pick ? ' active' : ''),
 			'title': r.hint || '',
 			'tabindex': '-1',
@@ -67,8 +80,11 @@ function drawHint() {
 		}, [ r.title ]));
 	});
 	const cur = _rows[_pick < 0 ? 0 : _pick];
-	_hint.appendChild(E('span', { 'class': 'fs-pal-help' }, [ cur && cur.hint ? cur.hint : '' ]));
+	_help.textContent = cur && cur.hint ? cur.hint : '';
 	_hint.hidden = false;
+	_input.setAttribute('aria-expanded', 'true');
+	if (_pick >= 0) _input.setAttribute('aria-activedescendant', 'fs-pal-cand-' + _pick);
+	else _input.removeAttribute('aria-activedescendant');
 }
 
 function take(i) {
@@ -144,9 +160,18 @@ function histStep(dir) {
 
 function build() {
 	_out = E('pre', { 'class': 'fs-pal-out', 'aria-live': 'polite', 'hidden': '' });
-	_hint = E('div', { 'class': 'fs-pal-hint', 'hidden': '' });
+	_list = E('div', { 'id': 'fs-pal-list', 'class': 'fs-pal-cands', 'role': 'listbox', 'aria-label': _('Candidates') });
+	_help = E('div', { 'class': 'fs-pal-help' });
+	_hint = E('div', { 'class': 'fs-pal-hint', 'hidden': '' }, [ _list, _help ]);
 	_input = E('input', {
 		'type': 'text', 'class': 'fs-pal-input', 'aria-label': _('Command'),
+		/* combobox over a listbox, not a bare text field: without this the candidate strip is
+		 * invisible to a screen reader and Tab appears to change the field's value for no
+		 * announced reason */
+		'role': 'combobox',
+		'aria-controls': 'fs-pal-list',
+		'aria-expanded': 'false',
+		'aria-autocomplete': 'list',
 		'autocomplete': 'off', 'autocapitalize': 'off', 'spellcheck': 'false'
 	});
 	_root = E('div', {

@@ -176,6 +176,16 @@ function harvestSource(job) {
  * with "Administration", which reads as a ranking quirk rather than as a bug. */
 let _jobs = null, _jobPaths = null;
 
+/* A theme too old to export `viewClassFor` falls back to what this module tested before: the node
+ * is a page iff its action is a view. That loses Status -> Overview and nothing else, which is
+ * what it lost before the seam existed — the same shape as the `remember` fallback. */
+function viewClassOf(node) {
+	if (typeof tree.viewClassFor === 'function') return tree.viewClassFor(node);
+	if (node && node.action && node.action.type === 'view')
+		return 'view.' + String(node.action.path).replace(/\//g, '.');
+	return null;
+}
+
 function buildJobs() {
 	const out = [];
 	const root = tree.tree();
@@ -200,11 +210,22 @@ function buildJobs() {
 			if (depth === 1 && entry.name === 'logout') return;
 			const csegs = segs.concat([ entry.name ]);
 			const title = _(c.title);
-			if (c.action && c.action.type === 'view') {
+			/* `viewClassFor` and not `action.type === 'view'`, which is what this used to test.
+			 * The theme's own rule for "is this node an SPA page" covers one node that is not a
+			 * view: Status -> Overview is a `template` action pointing at `admin_status/index`,
+			 * whose server template does nothing but instantiate view.status.index. Testing the
+			 * action type directly left that page out of the index entirely, so its sections were
+			 * harvested from the DOM on every visit, stored, and never returned by any search.
+			 * Borrowing the theme's exported answer also means a second such node cannot appear
+			 * on one side and not the other. */
+			const cls = viewClassOf(c);
+			if (cls) {
 				out.push({
 					path: csegs.join('/'),
 					segs: csegs,
-					view: String(c.action.path),
+					/* back from the dotted module class to the path half of the URL luci.js would
+					 * fetch: `view.status.index` -> `status/index` */
+					view: cls.replace(/^view\./, '').replace(/\./g, '/'),
 					title: title,
 					trail: trail,
 					depth: depth
