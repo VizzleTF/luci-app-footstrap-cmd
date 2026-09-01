@@ -17,7 +17,7 @@ source tree and never runs `Build/Prepare`:
   for the life of the document. The bar lost its styling on page two, not on load.
 - `LUCI_MINIFY_CSS` defaults to 1, which runs **csstidy** over every `*.css` — and csstidy predates
   `@layer` by fifteen years. Measured on this package's sheet: 3851 bytes in, 1327 out, **exit 0**,
-  with the `@layer theme { … }` wrapper and the `.fs-pal` rule inside it gone, `@keyframes` reduced
+  with the `@layer theme { … }` wrapper and the `.fs-cmd` rule inside it gone, `@keyframes` reduced
   to a stray `to{…}` selector and the reduced-motion query rewritten into something invalid.
 - Of the 21 private `--fs-*` names the sheet reads, **15 do not survive a package build**: the
   theme's `mangle-tokens.sh` derives its reserved set from the theme's own sources, which this
@@ -26,7 +26,7 @@ source tree and never runs `Build/Prepare`:
   now falls back to the export tier for colour and to the theme's own value at density 1 otherwise.
 
 The sheet also carries a `?v=` now, and moved from the too-generic `/www/luci-static/palette/` to
-`footstrap-palette/`.
+`footstrap-cmd/`.
 
 ### Fixed — commands that answered wrongly
 
@@ -53,6 +53,23 @@ A network error while harvesting was cached as "this page has no sections" until
 upgrade; only a 404 is a permanent miss now. The source harvest could overwrite the richer DOM
 harvest. A hung fetch stalled the queue forever. `jobs()` was documented as walked once and was not
 memoised.
+
+### Fixed — the ACL gate had never refused anything
+
+`reachable()` tested whether a menu node was PRESENT in `/admin/menu`. That blob is not the
+pre-filtered tree this package assumed: it carries every node and marks the reachable ones with
+`satisfied`. Presence was therefore always true, the gate was wired to a condition that cannot
+fail, and a session holding none of the relevant groups was offered `:restart`, `:ifup`, `:wifi`,
+`:reboot` and the rest.
+
+It was invisible because every test ran as root, where every node is satisfied — a gate wired to an
+always-true condition looks exactly like a working one. Nothing could be executed through it (rpcd
+refuses the call whatever the bar offers), so it was a false promise rather than a privilege
+escalation, but the promise is in this README and it is the entire reason the package ships no
+`acl.d`.
+
+`tools/acl-gate.sh` now creates a restricted login, runs the bar against it and asserts the exact
+split — 11 commands offered, 21 gone — and removes the login again.
 
 ### Fixed — pages that were indexed and never findable
 
@@ -87,7 +104,7 @@ package does not already inherit. **This package still ships no `acl.d` of its o
 - `LUCI_MINIFY_CSS:=0`, a `postrm` guard on `*upgrade*`, an `rpcd reload` in `postinst`, `LICENSE`
   and `PKG_LICENSE_FILES`, `LUCI_DESCRIPTION`.
 - `uci-defaults` matches the plugin name as a whole token (`grep -qw` treated `-` as a word
-  boundary, so `fs-palette-anything` counted as `fs-palette` and the registration was skipped) and
+  boundary, so `fs-cmd-anything` counted as `fs-cmd` and the registration was skipped) and
   creates `/etc/config/footstrap` when the theme has not got there first.
 - `po/`, with a complete Russian catalogue (93 strings) and `update-po.sh --check` as the gate.
 - `tools/t0.sh`, `tools/probe.mjs` (67 assertions against a live router), `tools/i18n-probe.mjs`,
@@ -108,7 +125,7 @@ package does not already inherit. **This package still ships no `acl.d` of its o
   back to file mtimes when there is no `.git`, which is the case inside `owlab build`: the package
   is copied into the SDK container without it. So an owlab build is `0.<yymmdd>.<secs>` and differs
   run to run, and a tag does not change that. `FOOTSTRAP_VERSION` pins it — verified by building in
-  the same SDK image by hand, which produced `luci-app-footstrap-palette_0.1.0-r1_all.ipk` — but
+  the same SDK image by hand, which produced `luci-app-footstrap-cmd_0.1.0-r1_all.ipk` — but
   `owlab build` does not forward the variable into the container, so a release needs its own path.
 - **`po/ru` only**; every other language falls through to English. The Russian catalogue is proved
   to actually load on a router by `tools/i18n-probe.mjs` (806 Cyrillic characters in `:help`),

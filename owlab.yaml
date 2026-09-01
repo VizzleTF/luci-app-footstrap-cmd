@@ -4,7 +4,7 @@
 #   owlab sync               push the working tree onto them
 #   owlab build              build a real .apk/.ipk with the OpenWrt SDK
 #   owlab install <pkg>      install a built package on a running router
-#   owlab open pal2512       open LuCI in a browser
+#   owlab open cmd2512       open LuCI in a browser
 #
 # TWO routers, and the pair is the point: 25.12 installs with **apk** and 24.10 with **opkg**, and
 # the two package managers disagree about exactly the thing this package's postrm guards against —
@@ -17,19 +17,19 @@
 version: 1
 
 project:
-  name: luci-app-footstrap-palette
+  name: luci-app-footstrap-cmd
   theme: footstrap
 
   # The package lives in a subdirectory, so the install mapping is stated rather than defaulted.
   # The THEME is installed alongside from its sibling checkout: this package is inert without it
-  # (the chrome is what requires `fs-palette`), so a stand carrying only this package would prove
+  # (the chrome is what requires `fs-cmd`), so a stand carrying only this package would prove
   # that the files copied and nothing else.
   install:
     ../luci-theme-footstrap/luci-theme-footstrap/htdocs: /www
     ../luci-theme-footstrap/luci-theme-footstrap/ucode: /usr/share/ucode/luci
     ../luci-theme-footstrap/luci-theme-footstrap/root: /
-    luci-app-footstrap-palette/htdocs: /www
-    luci-app-footstrap-palette/root: /
+    luci-app-footstrap-cmd/htdocs: /www
+    luci-app-footstrap-cmd/root: /
 
   # cascade.css is concatenated from the theme's styles/ and is not in its tree. Without this a sync
   # copies everything except the file LuCI asks for, and the router serves a 404 for the stylesheet.
@@ -50,11 +50,11 @@ project:
     [ -f /etc/config/footstrap ] || touch /etc/config/footstrap
     uci -q get footstrap.settings >/dev/null || uci -q set footstrap.settings=footstrap
     # Whole-token match: `grep -qw` treats `-` as a word boundary, so a list holding
-    # `fs-palette-anything` would count as holding `fs-palette` and skip the add_list.
+    # `fs-cmd-anything` would count as holding `fs-cmd` and skip the add_list.
     case " $(uci -q get footstrap.settings.plugin) " in
-    	*" fs-palette "*) ;;
+    	*" fs-cmd "*) ;;
     	*)
-    		uci -q add_list footstrap.settings.plugin=fs-palette
+    		uci -q add_list footstrap.settings.plugin=fs-cmd
     		uci -q commit footstrap
     		;;
     esac
@@ -88,9 +88,9 @@ defaults:
     - +openssh-sftp-server
 
 routers:
-  - id: pal2512
+  - id: cmd2512
     release: "25.12.4"
     ports: { http: 8040, ssh: 2240 }
-  - id: pal2410
+  - id: cmd2410
     release: "24.10.7"
     ports: { http: 8041, ssh: 2241 }

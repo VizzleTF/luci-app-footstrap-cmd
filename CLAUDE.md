@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`luci-app-footstrap-palette` — a companion package for **`luci-theme-footstrap`**, adding the two
+`luci-app-footstrap-cmd` — a companion package for **`luci-theme-footstrap`**, adding the two
 things the theme's own page search does not do: a **`:` command line** and **search over the
 sections inside a page**. Client-side only: four JS modules, one stylesheet, one uci-defaults
 script. No server code, no ACL file, no menu entry.
@@ -10,7 +10,7 @@ script. No server code, no ACL file, no menu entry.
 **The floor is the theme's floor: OpenWrt 24.10 and newer** (and ImmortalWrt). What the theme cannot
 run on, this cannot either.
 
-**Repo root is the workspace**; the shipped package is `luci-app-footstrap-palette/` one level down
+**Repo root is the workspace**; the shipped package is `luci-app-footstrap-cmd/` one level down
 — same name, one level apart, so a path is ambiguous unless it is absolute or rooted. The theme is a
 sibling checkout at `../luci-theme-footstrap`, and its `docs/` is the reference for the chrome, the
 router, the CSS layers and the stands. **Do not re-derive what a theme doc already settled.**
@@ -30,7 +30,7 @@ Six seams, all of them the theme's, none of them naming this package:
 
 1. **`footstrap.settings.plugin`** — a uci list. `header.ut` whitelists each entry to the shape of a
    LuCI module name and prints `window.__fsPlugins`; the chrome requires each name at the end of its
-   init. This package's uci-defaults adds `fs-palette`; its postrm removes it.
+   init. This package's uci-defaults adds `fs-cmd`; its postrm removes it.
 2. **`window.__fsSearchSources`** — an array of functions returning palette rows. `fs-search`'s
    `pool()` concatenates them onto its own index and ranks everything together. A **global, not an
    export**: the palette is fetched on the first gesture and most sessions never make one, so a
@@ -68,7 +68,7 @@ from the DOM on every visit, stored, and returned by no search. A theme too old 
 `viewClassFor` falls back to the old test and loses that one page, which is what it lost before the
 seam existed.
 
-**The tree walk in `fs-palette-sections.js` is the theme's `fs-search.buildIndex()`, duplicated on
+**The tree walk in `fs-cmd-sections.js` is the theme's `fs-search.buildIndex()`, duplicated on
 purpose.** Both halves are ranked against each other by the same `search()`, so `depth` and `trail`
 have to mean the same thing on both sides: start INSIDE each mode (`admin` is a container, not a
 level, and its title is in nobody's trail), stop at the same `MAX_DEPTH = 4`, skip `logout` at
@@ -78,7 +78,7 @@ prefixes every trail with "Administration".
 **Our CSS may not name the theme's private tokens without a fallback.** `--fs-*` is the private
 tier and `mangle-tokens.sh` renames it to `--a`, `--b`, … deriving the reserved set by scanning the
 THEME's own `htdocs/luci-static/resources` and `ucode` — which this package is not in. Measured
-against 0.14.5: of the 21 `--fs-*` names `palette.css` reads, **6 survive and 15 do not**. A dev
+against 0.14.5: of the 21 `--fs-*` names `cmd.css` reads, **6 survive and 15 do not**. A dev
 stand mangles nothing, so the failure is invisible exactly where it would be caught. Every `var()`
 therefore names the private token first and falls back to the **export tier**
 (`--background-color-*`, `--border-color-*`, `--text-color-*` — the documented outbound contract
@@ -94,10 +94,10 @@ version that does not have it yet.
 
 | File | Owns | Loaded |
 |---|---|---|
-| `fs-palette.js` | the entry point: the `<link>`, the `:` binding, registering the source | every page (956 B) |
-| `fs-palette-sections.js` | the section index: two harvesters, the cache, the palette rows, `pages()` | every page (7 583 B) |
-| `fs-palette-cmdline.js` | the bar on the bottom edge: input, wildmenu, echo area, keys, history | on the first `:` (4 401 B) |
-| `fs-palette-commands.js` | the command table, the gate, `suggest()` and `run()` | on the first `:` (15 013 B) |
+| `fs-cmd.js` | the entry point: the `<link>`, the `:` binding, registering the source | every page (956 B) |
+| `fs-cmd-sections.js` | the section index: two harvesters, the cache, the palette rows, `pages()` | every page (7 583 B) |
+| `fs-cmd-bar.js` | the bar on the bottom edge: input, wildmenu, echo area, keys, history | on the first `:` (4 401 B) |
+| `fs-cmd-commands.js` | the command table, the gate, `suggest()` and `run()` | on the first `:` (15 013 B) |
 
 Bytes after **jsmin**, which is what `luci.mk` runs (`LUCI_MINIFY_JS?=1`, `luci.mk:18`). Measured by
 building `modules/luci-base/src/jsmin.c` from the luci checkout and piping each file through it —
@@ -135,7 +135,7 @@ that ACL group is present in the session's own, already ACL-filtered, `/admin/me
 
 `:e` needs no gate in any sense: the page list it completes over IS the ACL-filtered menu, so a
 page the session may not open is not in it to be completed. It reads that list from
-`fs-palette-sections.pages()` rather than walking the tree a third time — the module is already
+`fs-cmd-sections.pages()` rather than walking the tree a third time — the module is already
 loaded on every page, so the command table gets it for nothing, and there is no require cycle
 (sections requires the theme's modules and never the command table).
 
@@ -158,8 +158,26 @@ never given. **Adding an `acl.d` entry is a security change and needs `/security
 theme's checkout, not a judgement call.** Gating by node presence costs nothing: the tree is already
 in the browser.
 
-`reachable()` uses `tree.nodeForSegs` — **raw presence, never `resolveSegs`**: an alias resolves
-somewhere else and would answer for a permission the session may not hold.
+`reachable()` uses `tree.nodeForSegs` — **never `resolveSegs`**: an alias resolves somewhere else
+and would answer for a permission the session may not hold.
+
+**And it tests `node.satisfied`, not the node's presence.** `/admin/menu` is NOT the pre-filtered
+tree this package assumed it was: it carries EVERY node and marks the reachable ones. Testing
+presence answered "yes" for everything, so the gate had never once refused anything — and that was
+invisible because every test ran as root, where every node is satisfied. A gate wired to an
+always-true condition looks exactly like a working one.
+
+Measured on a stand with a login holding only `luci-base`, the theme and `luci-mod-status-index`:
+`admin/system/reboot`, `admin/network/network`, `admin/network/wireless`, `admin/status/logs` and
+`admin/status/processes` are all present with `satisfied: false`, while `admin/status/overview` is
+present and satisfied. Falsy is unsatisfied, which is how the theme's own `childrenOf()` reads it.
+
+Nothing could be executed through the hole — rpcd refuses the call whatever the bar offers — so it
+was a false promise rather than a privilege escalation. But the promise is in the README and it is
+the entire reason this package ships no `acl.d`, so **`tools/acl-gate.sh` is not optional**: it
+creates a restricted login, runs the bar against it and asserts the exact split (11 commands
+offered, 21 gone). Run it after any change to `reachable()`, to a `needs` value, or to the command
+table.
 
 ## The section index, and what it costs
 
@@ -253,17 +271,17 @@ owlab build -release 24.10.7 -arch x86_64 -out dist   # a real .ipk
 owlab -c ../tmp/owlab-agent/owlab.yaml sync agent2512
 owlab -c ../tmp/owlab-agent/owlab.yaml status
 
-# this package's files on that stand. Note the glob: `fs-palette-*.js` does NOT match
-# `fs-palette.js`, and the entry point is the one file whose absence breaks everything.
-docker exec owlab-luci-theme-footstrap-agent-agent2512 ls /www/luci-static/resources/ | grep fs-palette
-docker exec owlab-luci-theme-footstrap-agent-agent2512 ls /www/luci-static/footstrap-palette/
+# this package's files on that stand. Note the glob: `fs-cmd-*.js` does NOT match
+# `fs-cmd.js`, and the entry point is the one file whose absence breaks everything.
+docker exec owlab-luci-theme-footstrap-agent-agent2512 ls /www/luci-static/resources/ | grep fs-cmd
+docker exec owlab-luci-theme-footstrap-agent-agent2512 ls /www/luci-static/footstrap-cmd/
 
 # what the index holds right now, from the browser console
-L.require('fs-palette-sections').then(m => m.stats())
+L.require('fs-cmd-sections').then(m => m.stats())
 
 # the catalogue, after adding or changing any _('…')
-LUCI_SRC=../../luci ./luci-app-footstrap-palette/update-po.sh
-LUCI_SRC=../../luci ./luci-app-footstrap-palette/update-po.sh --check
+LUCI_SRC=../../luci ./luci-app-footstrap-cmd/update-po.sh
+LUCI_SRC=../../luci ./luci-app-footstrap-cmd/update-po.sh --check
 
 # the minifier the buildbot actually uses, for the T0 round-trip
 cc -O2 -o /tmp/jsmin ../luci/modules/luci-base/src/jsmin.c
@@ -286,8 +304,8 @@ restart drops every LuCI session.
 lands on a synced stand either. `uci set` on a package whose config file does not exist fails with
 "Entry not found", and `-q` hides it — the stand then has an unregistered plugin and no error to
 say so. Both the package's uci-defaults and the stand's `post_sync` `touch` the file first, and
-both match the plugin name as a whole space-delimited token: `grep -qw fs-palette` treats `-` as a
-word boundary, so a list holding `fs-palette-anything` counted as holding `fs-palette`.
+both match the plugin name as a whole space-delimited token: `grep -qw fs-cmd` treats `-` as a
+word boundary, so a list holding `fs-cmd-anything` counted as holding `fs-cmd`.
 
 ## Verifying
 
@@ -331,8 +349,8 @@ No npm gate suite here yet. What must hold before a change is called done:
   owlab build -release 25.12.4 -arch x86_64 -out dist    # .apk
   owlab build -release 24.10.7 -arch x86_64 -out dist    # .ipk
   T2_BUILD_LOG=<build log> tools/t2-inspect.sh dist
-  tools/t2-install.sh owlab-luci-app-footstrap-palette-pal2410 dist/all/…​.ipk opkg
-  tools/t2-install.sh owlab-luci-app-footstrap-palette-pal2512 dist/noarch/…​.apk apk
+  tools/t2-install.sh owlab-luci-app-footstrap-cmd-pal2410 dist/all/…​.ipk opkg
+  tools/t2-install.sh owlab-luci-app-footstrap-cmd-pal2512 dist/noarch/…​.apk apk
   PALETTE_BASE=http://localhost:8040 node tools/probe.mjs
   ```
 
@@ -355,25 +373,25 @@ No npm gate suite here yet. What must hold before a change is called done:
     `0.260831.76478` and `0.260831.79550`, and both paths were then walked for real:
 
     ```
-    opkg:  Upgrading luci-app-footstrap-palette on root from 0.260831.76478 to 0.260831.79550
-    apk:   Upgrading luci-app-footstrap-palette (0.260831.76478 -> 0.260831.79550)
-             Executing luci-app-footstrap-palette-0.260831.79550.post-upgrade
+    opkg:  Upgrading luci-app-footstrap-cmd on root from 0.260831.76478 to 0.260831.79550
+    apk:   Upgrading luci-app-footstrap-cmd (0.260831.76478 -> 0.260831.79550)
+             Executing luci-app-footstrap-cmd-0.260831.79550.post-upgrade
     ```
 
-    `footstrap.settings.plugin` still read `fs-palette` after each, and all 31 commands were present
+    `footstrap.settings.plugin` still read `fs-cmd` after each, and all 31 commands were present
     in the upgraded files. The apk line also confirms the claim the postrm comment rests on: apk
     runs the NEW package's `post-upgrade` and never the old one's `post-deinstall`, which is why
     guarding on `$1` is correct for opkg and harmless for apk.
 
     The guard is additionally checked in isolation by `tools/t2-install.sh`, which calls
-    `sh /usr/lib/opkg/info/luci-app-footstrap-palette.postrm upgrade` directly — it must exit 0 and
+    `sh /usr/lib/opkg/info/luci-app-footstrap-cmd.postrm upgrade` directly — it must exit 0 and
     leave the registration alone, while `… postrm remove` must clear it.
-  - **`owlab build -out` copies out only the NAMED package**, so `luci-i18n-footstrap-palette-ru`
+  - **`owlab build -out` copies out only the NAMED package**, so `luci-i18n-footstrap-cmd-ru`
     never reaches `dist/` even though the SDK builds it. Confirmed by building the same tree in the
-    SDK image by hand, which emits both `luci-app-footstrap-palette_0.1.0-r1_all.ipk` and
-    `luci-i18n-footstrap-palette-ru_0.260901.24779_all.ipk`; the i18n package's own version is
+    SDK image by hand, which emits both `luci-app-footstrap-cmd_0.1.0-r1_all.ipk` and
+    `luci-i18n-footstrap-cmd-ru_0.260901.24779_all.ipk`; the i18n package's own version is
     derived from `po/` separately and is NOT pinned by `FOOTSTRAP_VERSION`. The proof is in the build log (`po2lmo`,
-    `footstrap-palette.ru.lmo`), which is what `T2_BUILD_LOG` points the inspector at. Not a defect
+    `footstrap-cmd.ru.lmo`), which is what `T2_BUILD_LOG` points the inspector at. Not a defect
     — but the log has to be the FULL one: a build script that pipes owlab through `tail` cuts the
     po2lmo line and the inspector then reports a regression that is its own.
   - **An apk is not a tar.** OpenWrt's apk v3 is an ADB container (`ADBd` magic); its payload comes

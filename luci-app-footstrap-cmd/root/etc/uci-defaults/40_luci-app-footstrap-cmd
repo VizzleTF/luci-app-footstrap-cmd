@@ -20,12 +20,12 @@ uci -q get footstrap.settings >/dev/null || uci -q set footstrap.settings=footst
 # the chrome would require it twice (harmless, but the config would read as broken).
 #
 # Matched as a whole space-delimited token. `grep -qw` was wrong here: `-w` treats `-` as a word
-# boundary, so a list holding `fs-palette-extra` and NOT `fs-palette` matched, the add_list was
+# boundary, so a list holding `fs-cmd-extra` and NOT `fs-cmd` matched, the add_list was
 # skipped and the package registered nothing at all.
 case " $(uci -q get footstrap.settings.plugin) " in
-	*" fs-palette "*) ;;
+	*" fs-cmd "*) ;;
 	*)
-		uci -q add_list footstrap.settings.plugin=fs-palette
+		uci -q add_list footstrap.settings.plugin=fs-cmd
 		uci -q commit footstrap
 		;;
 esac

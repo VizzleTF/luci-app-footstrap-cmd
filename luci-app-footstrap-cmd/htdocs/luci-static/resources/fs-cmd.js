@@ -1,6 +1,6 @@
 'use strict';
 'require baseclass';
-'require fs-palette-sections as sections';
+'require fs-cmd-sections as sections';
 
 /* The package's entry point — the one module named in `footstrap.settings.plugin`, which the
  * theme's chrome requires at the end of its init and knows nothing else about.
@@ -33,7 +33,7 @@
  *
  * `data-fs-chrome` is a different seam with a different job: it marks a DOM ELEMENT as zone 1 so
  * the theme's fence (`:where(:not([data-fs-chrome],[data-fs-chrome] *))`) exempts it from a foreign
- * app's selectors. The bar itself carries it — see fs-palette-cmdline.js. On a <link> it does
+ * app's selectors. The bar itself carries it — see fs-cmd-bar.js. On a <link> it does
  * nothing at all.
  *
  * The `?v=` is this package's own: L.resource() does not add one (only LuCI's SubstituteVersion
@@ -43,13 +43,13 @@
  * because L.path() filters a part against [a-zA-Z0-9_.%=&;-] and would silently drop the `~` a
  * git-derived resource_version can carry. */
 function addStylesheet() {
-	if (document.getElementById('fs-palette-css')) return;
+	if (document.getElementById('fs-cmd-css')) return;
 	const v = L.env.resource_version;
 	document.head.appendChild(E('link', {
-		'id': 'fs-palette-css',
+		'id': 'fs-cmd-css',
 		'rel': 'stylesheet',
 		'data-fs-shell': '',
-		'href': L.resource('../footstrap-palette/palette.css') + (v ? '?v=' + encodeURIComponent(v) : '')
+		'href': L.resource('../footstrap-cmd/cmd.css') + (v ? '?v=' + encodeURIComponent(v) : '')
 	}));
 }
 
@@ -66,8 +66,8 @@ function wireColon() {
 		if (mod) { mod.open(); return; }
 		if (pending) return;
 		pending = true;
-		window.L.require('fs-palette-cmdline').then((m) => { pending = false; mod = m; m.open(); },
-			(e) => { pending = false; console.error('palette: the command line did not load', e); });
+		window.L.require('fs-cmd-bar').then((m) => { pending = false; mod = m; m.open(); },
+			(e) => { pending = false; console.error('fs-cmd: the command line did not load', e); });
 	});
 }
 

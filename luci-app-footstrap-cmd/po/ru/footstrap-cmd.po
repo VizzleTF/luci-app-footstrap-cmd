@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: luci-app-footstrap-palette\n"
+"Project-Id-Version: luci-app-footstrap-cmd\n"
 "PO-Revision-Date: 2026-09-01 00:00+0000\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: Russian\n"
@@ -11,385 +11,385 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:417
+#: htdocs/luci-static/resources/fs-cmd-commands.js:417
 msgid "%d change(s) — :apply to commit, :revert to drop"
 msgstr "изменений: %d — :apply чтобы применить, :revert чтобы сбросить"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:172
+#: htdocs/luci-static/resources/fs-cmd-commands.js:172
 msgid "%s %s: %s"
 msgstr "%s %s: %s"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:173
+#: htdocs/luci-static/resources/fs-cmd-commands.js:173
 msgid "%s: %s ok"
 msgstr "%s: %s выполнено"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:218
+#: htdocs/luci-static/resources/fs-cmd-commands.js:218
 msgid "%s: ok"
 msgstr "%s: готово"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:342
+#: htdocs/luci-static/resources/fs-cmd-commands.js:342
 msgid "%s: signalled"
 msgstr "%s: сигнал отправлен"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:330
+#: htdocs/luci-static/resources/fs-cmd-commands.js:330
 msgid "COMMAND"
 msgstr "КОМАНДА"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:330
+#: htdocs/luci-static/resources/fs-cmd-commands.js:330
 msgid "CPU"
 msgstr "ЦП"
 
-#: htdocs/luci-static/resources/fs-palette-cmdline.js:163
+#: htdocs/luci-static/resources/fs-cmd-bar.js:163
 msgid "Candidates"
 msgstr "Кандидаты"
 
-#: htdocs/luci-static/resources/fs-palette-cmdline.js:167
+#: htdocs/luci-static/resources/fs-cmd-bar.js:167
 msgid "Command"
 msgstr "Команда"
 
-#: htdocs/luci-static/resources/fs-palette-cmdline.js:182
+#: htdocs/luci-static/resources/fs-cmd-bar.js:182
 msgid "Command line"
 msgstr "Командная строка"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:330
+#: htdocs/luci-static/resources/fs-cmd-commands.js:330
 msgid "MEM"
 msgstr "ПАМ"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:330
+#: htdocs/luci-static/resources/fs-cmd-commands.js:330
 msgid "PID"
 msgstr "PID"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:427
+#: htdocs/luci-static/resources/fs-cmd-commands.js:427
 msgid "Rebooting…"
 msgstr "Перезагрузка…"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:468
+#: htdocs/luci-static/resources/fs-cmd-commands.js:468
 msgid "SIGKILL instead of SIGTERM"
 msgstr "SIGKILL вместо SIGTERM"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:330
+#: htdocs/luci-static/resources/fs-cmd-commands.js:330
 msgid "USER"
 msgstr "ПОЛЬЗ"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:427
+#: htdocs/luci-static/resources/fs-cmd-commands.js:427
 msgid "Waiting for device…"
 msgstr "Ожидание устройства…"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:485
+#: htdocs/luci-static/resources/fs-cmd-commands.js:485
 msgid "appearance axes; bare :set prints them"
 msgstr "оси оформления; просто :set печатает их"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:508
+#: htdocs/luci-static/resources/fs-cmd-commands.js:508
 msgid "apply the unsaved changes"
 msgstr "применить несохранённые изменения"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:452
+#: htdocs/luci-static/resources/fs-cmd-commands.js:452
 msgid "bring an interface up"
 msgstr "поднять интерфейс"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:494
+#: htdocs/luci-static/resources/fs-cmd-commands.js:494
 msgid "close the command line"
 msgstr "закрыть командную строку"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:396
+#: htdocs/luci-static/resources/fs-cmd-commands.js:396
 msgid "connections"
 msgstr "соединений"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:461
+#: htdocs/luci-static/resources/fs-cmd-commands.js:461
 msgid "conntrack entries against the table size"
 msgstr "записей conntrack против размера таблицы"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:153
+#: htdocs/luci-static/resources/fs-cmd-commands.js:153
 msgid "density"
 msgstr "плотность"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:444
+#: htdocs/luci-static/resources/fs-cmd-commands.js:444
 msgid "disable at boot"
 msgstr "отключить при загрузке"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:88
+#: htdocs/luci-static/resources/fs-cmd-commands.js:88
 msgid "disabled"
 msgstr "отключён"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:189
+#: htdocs/luci-static/resources/fs-cmd-commands.js:189
 msgid "down"
 msgstr "выкл"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:511
+#: htdocs/luci-static/resources/fs-cmd-commands.js:511
 msgid "drop the unsaved changes"
 msgstr "сбросить несохранённые изменения"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:442
+#: htdocs/luci-static/resources/fs-cmd-commands.js:442
 msgid "enable at boot"
 msgstr "включить при загрузке"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:88
+#: htdocs/luci-static/resources/fs-cmd-commands.js:88
 msgid "enabled"
 msgstr "включён"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:518
+#: htdocs/luci-static/resources/fs-cmd-commands.js:518
 msgid "every command this session may run"
 msgstr "все команды, доступные этой сессии"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:448
+#: htdocs/luci-static/resources/fs-cmd-commands.js:448
 msgid "every init script and its state"
 msgstr "все init-скрипты и их состояние"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:237
+#: htdocs/luci-static/resources/fs-cmd-commands.js:237
 msgid "firmware"
 msgstr "прошивка"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:492
+#: htdocs/luci-static/resources/fs-cmd-commands.js:492
 msgid "go to a page by name or path"
 msgstr "перейти на страницу по имени или пути"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:451
+#: htdocs/luci-static/resources/fs-cmd-commands.js:451
 msgid "interface addresses, gateway and uptime"
 msgstr "адреса интерфейсов, шлюз и аптайм"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:238
+#: htdocs/luci-static/resources/fs-cmd-commands.js:238
 msgid "kernel"
 msgstr "ядро"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:154
+#: htdocs/luci-static/resources/fs-cmd-commands.js:154
 msgid "layout"
 msgstr "раскладка"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:240
+#: htdocs/luci-static/resources/fs-cmd-commands.js:240
 msgid "load"
 msgstr "нагрузка"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:241
+#: htdocs/luci-static/resources/fs-cmd-commands.js:241
 msgid "memory"
 msgstr "память"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:152
+#: htdocs/luci-static/resources/fs-cmd-commands.js:152
 msgid "mode"
 msgstr "режим"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:236
+#: htdocs/luci-static/resources/fs-cmd-commands.js:236
 msgid "model"
 msgstr "модель"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:460
+#: htdocs/luci-static/resources/fs-cmd-commands.js:460
 msgid "model, firmware, uptime, load, memory"
 msgstr "модель, прошивка, аптайм, нагрузка, память"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:512
+#: htdocs/luci-static/resources/fs-cmd-commands.js:512
 msgid "no confirmation"
 msgstr "без подтверждения"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:167
+#: htdocs/luci-static/resources/fs-cmd-commands.js:167
 msgid "no init script named \"%s\""
 msgstr "нет init-скрипта с именем «%s»"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:180
+#: htdocs/luci-static/resources/fs-cmd-commands.js:180
 msgid "no init scripts (or rc list is not permitted)"
 msgstr "нет init-скриптов (или rc list запрещён)"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:194
+#: htdocs/luci-static/resources/fs-cmd-commands.js:194
 msgid "no interfaces"
 msgstr "нет интерфейсов"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:122
-#: htdocs/luci-static/resources/fs-palette-commands.js:218
-#: htdocs/luci-static/resources/fs-palette-commands.js:319
-#: htdocs/luci-static/resources/fs-palette-commands.js:342
+#: htdocs/luci-static/resources/fs-cmd-commands.js:122
+#: htdocs/luci-static/resources/fs-cmd-commands.js:218
+#: htdocs/luci-static/resources/fs-cmd-commands.js:319
+#: htdocs/luci-static/resources/fs-cmd-commands.js:342
 msgid "no output"
 msgstr "нет вывода"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:380
+#: htdocs/luci-static/resources/fs-cmd-commands.js:380
 msgid "no page matches \"%s\""
 msgstr "нет страницы, подходящей под «%s»"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:504
+#: htdocs/luci-static/resources/fs-cmd-commands.js:504
 msgid "no previous page yet"
 msgstr "предыдущей страницы ещё нет"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:329
+#: htdocs/luci-static/resources/fs-cmd-commands.js:329
 msgid "no processes"
 msgstr "нет процессов"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:525
-#: htdocs/luci-static/resources/fs-palette-commands.js:600
+#: htdocs/luci-static/resources/fs-cmd-commands.js:525
+#: htdocs/luci-static/resources/fs-cmd-commands.js:600
 msgid "not a command: %s"
 msgstr "не команда: %s"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:288
-#: htdocs/luci-static/resources/fs-palette-commands.js:294
+#: htdocs/luci-static/resources/fs-cmd-commands.js:288
+#: htdocs/luci-static/resources/fs-cmd-commands.js:294
 msgid "not a host: %s"
 msgstr "не имя узла: %s"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:300
+#: htdocs/luci-static/resources/fs-cmd-commands.js:300
 msgid "not a name: %s"
 msgstr "не имя: %s"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:340
+#: htdocs/luci-static/resources/fs-cmd-commands.js:340
 msgid "not a pid: %s"
 msgstr "не PID: %s"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:217
+#: htdocs/luci-static/resources/fs-cmd-commands.js:217
 msgid "not an interface name: %s"
 msgstr "не имя интерфейса: %s"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:256
+#: htdocs/luci-static/resources/fs-cmd-commands.js:256
 msgid "nothing in the log matches \"%s\""
 msgstr "в журнале нет строк, содержащих «%s»"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:416
+#: htdocs/luci-static/resources/fs-cmd-commands.js:416
 msgid "nothing to apply"
 msgstr "нечего применять"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:155
+#: htdocs/luci-static/resources/fs-cmd-commands.js:155
 msgid "off"
 msgstr "выкл"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:155
+#: htdocs/luci-static/resources/fs-cmd-commands.js:155
 msgid "on"
 msgstr "вкл"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:475
+#: htdocs/luci-static/resources/fs-cmd-commands.js:475
 msgid "ping a host"
 msgstr "пропинговать узел"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:155
+#: htdocs/luci-static/resources/fs-cmd-commands.js:155
 msgid "rail"
 msgstr "рейка"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:512
+#: htdocs/luci-static/resources/fs-cmd-commands.js:512
 msgid "reboot the router"
 msgstr "перезагрузить роутер"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:446
+#: htdocs/luci-static/resources/fs-cmd-commands.js:446
 msgid "reload an init script"
 msgstr "перечитать конфигурацию init-скрипта"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:456
+#: htdocs/luci-static/resources/fs-cmd-commands.js:456
 msgid "reload, up, down or status; bare :wifi reloads"
 msgstr "reload, up, down или status; просто :wifi перезагружает"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:480
+#: htdocs/luci-static/resources/fs-cmd-commands.js:480
 msgid "resolve a name"
 msgstr "разрешить имя"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:436
+#: htdocs/luci-static/resources/fs-cmd-commands.js:436
 msgid "restart an init script"
 msgstr "перезапустить init-скрипт"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:88
+#: htdocs/luci-static/resources/fs-cmd-commands.js:88
 msgid "running"
 msgstr "работает"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:482
+#: htdocs/luci-static/resources/fs-cmd-commands.js:482
 msgid "set the router's clock from this browser"
 msgstr "выставить часы роутера по этому браузеру"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:469
+#: htdocs/luci-static/resources/fs-cmd-commands.js:469
 msgid "signal a process"
 msgstr "послать сигнал процессу"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:508
+#: htdocs/luci-static/resources/fs-cmd-commands.js:508
 msgid "skip the connectivity check"
 msgstr "пропустить проверку связи"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:438
+#: htdocs/luci-static/resources/fs-cmd-commands.js:438
 msgid "start an init script"
 msgstr "запустить init-скрипт"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:440
+#: htdocs/luci-static/resources/fs-cmd-commands.js:440
 msgid "stop an init script"
 msgstr "остановить init-скрипт"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:454
+#: htdocs/luci-static/resources/fs-cmd-commands.js:454
 msgid "take an interface down"
 msgstr "опустить интерфейс"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:467
+#: htdocs/luci-static/resources/fs-cmd-commands.js:467
 msgid "the 40 busiest processes"
 msgstr "40 самых нагруженных процессов"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:395
+#: htdocs/luci-static/resources/fs-cmd-commands.js:395
 msgid "the conntrack table is not readable here"
 msgstr "таблица conntrack здесь недоступна для чтения"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:466
+#: htdocs/luci-static/resources/fs-cmd-commands.js:466
 msgid "the last 40 matching kernel messages"
 msgstr "последние 40 подходящих сообщений ядра"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:464
+#: htdocs/luci-static/resources/fs-cmd-commands.js:464
 msgid "the last 40 matching log lines"
 msgstr "последние 40 подходящих строк журнала"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:256
+#: htdocs/luci-static/resources/fs-cmd-commands.js:256
 msgid "the log is empty"
 msgstr "журнал пуст"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:472
+#: htdocs/luci-static/resources/fs-cmd-commands.js:472
 msgid "the neighbour table, v4 and v6"
 msgstr "таблица соседей, v4 и v6"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:495
+#: htdocs/luci-static/resources/fs-cmd-commands.js:495
 msgid "the previously visited page"
 msgstr "предыдущая посещённая страница"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:402
+#: htdocs/luci-static/resources/fs-cmd-commands.js:402
 msgid "the router's clock is now this browser's"
 msgstr "часы роутера выставлены по этому браузеру"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:470
+#: htdocs/luci-static/resources/fs-cmd-commands.js:470
 msgid "the routing table, v4 and v6"
 msgstr "таблица маршрутизации, v4 и v6"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:507
+#: htdocs/luci-static/resources/fs-cmd-commands.js:507
 msgid "the unsaved changes, as uci commands"
 msgstr "несохранённые изменения в виде команд uci"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:421
+#: htdocs/luci-static/resources/fs-cmd-commands.js:421
 msgid "this reboots the router now — run :reboot! to confirm"
 msgstr ""
 "это перезагрузит роутер немедленно — введите :reboot! для подтверждения"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:478
+#: htdocs/luci-static/resources/fs-cmd-commands.js:478
 msgid "traceroute to a host"
 msgstr "трассировка до узла"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:226
+#: htdocs/luci-static/resources/fs-cmd-commands.js:226
 msgid "unknown action \"%s\" — one of: %s"
 msgstr "неизвестное действие «%s» — одно из: %s"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:159
+#: htdocs/luci-static/resources/fs-cmd-commands.js:159
 msgid "unknown option \"%s\""
 msgstr "неизвестный параметр «%s»"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:189
+#: htdocs/luci-static/resources/fs-cmd-commands.js:189
 msgid "up"
 msgstr "вкл"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:239
+#: htdocs/luci-static/resources/fs-cmd-commands.js:239
 msgid "uptime"
 msgstr "аптайм"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:287
-#: htdocs/luci-static/resources/fs-palette-commands.js:293
+#: htdocs/luci-static/resources/fs-cmd-commands.js:287
+#: htdocs/luci-static/resources/fs-cmd-commands.js:293
 msgid "which host?"
 msgstr "какой узел?"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:216
+#: htdocs/luci-static/resources/fs-cmd-commands.js:216
 msgid "which interface?"
 msgstr "какой интерфейс?"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:299
+#: htdocs/luci-static/resources/fs-cmd-commands.js:299
 msgid "which name?"
 msgstr "какое имя?"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:378
+#: htdocs/luci-static/resources/fs-cmd-commands.js:378
 msgid "which page?"
 msgstr "какая страница?"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:339
+#: htdocs/luci-static/resources/fs-cmd-commands.js:339
 msgid "which pid?"
 msgstr "какой PID?"
 
-#: htdocs/luci-static/resources/fs-palette-commands.js:166
+#: htdocs/luci-static/resources/fs-cmd-commands.js:166
 msgid "which service?"
 msgstr "какая служба?"

@@ -1,6 +1,6 @@
 #!/bin/sh
-# Rescan this package's sources into po/templates/footstrap-palette.pot and merge it into every
-# po/<lang>/footstrap-palette.po. Run after adding or changing ANY _('…') string.
+# Rescan this package's sources into po/templates/footstrap-cmd.pot and merge it into every
+# po/<lang>/footstrap-cmd.po. Run after adding or changing ANY _('…') string.
 #
 #   ./update-po.sh            rescan, merge, report what is still untranslated
 #   ./update-po.sh --check    change nothing; fail if the .pot is stale or a string is untranslated
@@ -28,7 +28,7 @@ set -eu
 
 cd "$(dirname "$0")"
 
-POT='po/templates/footstrap-palette.pot'
+POT='po/templates/footstrap-cmd.pot'
 CHECK=0
 [ "${1:-}" = '--check' ] && CHECK=1
 
@@ -84,7 +84,7 @@ rc=0
 for d in po/*/; do
 	lang="${d%/}"; lang="${lang##*/}"
 	[ "$lang" = 'templates' ] && continue
-	po="$d/footstrap-palette.po"
+	po="$d/footstrap-cmd.po"
 	if [ "$CHECK" = 0 ]; then
 		if [ -f "$po" ]; then
 			msgmerge --quiet --update --backup=none "$po" "$POT"

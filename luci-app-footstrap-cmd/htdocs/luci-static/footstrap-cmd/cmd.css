@@ -1,6 +1,6 @@
-/* luci-app-footstrap-palette — the command line.
+/* luci-app-footstrap-cmd — the command line.
  *
- * Loaded by fs-palette.js as its own <link>: the theme's cascade.css is concatenated from the
+ * Loaded by fs-cmd.js as its own <link>: the theme's cascade.css is concatenated from the
  * theme's styles/ tree at package time and nothing outside that tree can join it.
  *
  * @layer theme, so the theme's own rules and this one are in the same layer and a foreign app's
@@ -34,7 +34,7 @@
  *     whatever the reader chose. That is a visible degradation and not a broken bar, which is the
  *     trade the export tier does not offer: there is no public tier for space or type. */
 @layer theme {
-	.fs-pal {
+	.fs-cmd {
 		position: fixed; inset: auto 0 0 0;
 		z-index: var(--fs-z-popover, 850);
 		display: flex; flex-direction: column;
@@ -49,7 +49,7 @@
 
 	/* The echo area, capped and scrollable: `:services` prints 44 rows on a stock router and
 	 * `:log` 40, and a fixed element cannot be scrolled by the page around it. */
-	.fs-pal-out {
+	.fs-cmd-out {
 		max-height: min(40dvh, 380px); overflow: auto;
 		margin: 0; padding: var(--fs-space-3, 12px) var(--fs-space-4);
 		border-block-end: var(--fs-hairline, 1px solid var(--border-color-medium));
@@ -57,19 +57,19 @@
 		font-family: inherit; font-size: inherit; line-height: 1.5;
 		white-space: pre; tab-size: 4;
 	}
-	.fs-pal-out.bad { color: var(--fs-danger); }
+	.fs-cmd-out.bad { color: var(--fs-danger); }
 
 	/* vim's wildmenu: the candidates on one wrapping row, with the current one's help text under it.
 	 *
 	 * Two elements rather than one because the candidate strip is a `role="listbox"`, and a listbox
 	 * whose children are not all options is an invalid tree — the help line is a sibling of the
 	 * list, not a member of it. */
-	.fs-pal-hint {
+	.fs-cmd-hint {
 		padding: var(--fs-space-2, 8px) var(--fs-space-4);
 		border-block-end: var(--fs-hairline, 1px solid var(--border-color-medium));
 		color: var(--fs-faint, var(--text-color-low));
 	}
-	.fs-pal-cands {
+	.fs-cmd-cands {
 		display: flex; flex-wrap: wrap; align-items: baseline;
 		gap: var(--fs-space-1, 4px) var(--fs-space-2, 8px);
 	}
@@ -77,7 +77,7 @@
 	/* A candidate is a button, so it is reachable by pointer as well as by Tab. `appearance: none`
 	 * and the resets below because the theme's own button rules would otherwise paint a control
 	 * inside a strip that is a list of words. */
-	.fs-pal-cand {
+	.fs-cmd-cand {
 		appearance: none; -webkit-appearance: none;
 		margin: 0; border: 0; background: transparent;
 		min-height: 0;
@@ -86,33 +86,33 @@
 		color: inherit; font: inherit; line-height: inherit;
 		cursor: pointer;
 	}
-	.fs-pal-cand.active { background: var(--fs-accent-soft, transparent); color: var(--fs-accent); }
-	.fs-pal-help {
+	.fs-cmd-cand.active { background: var(--fs-accent-soft, transparent); color: var(--fs-accent); }
+	.fs-cmd-help {
 		margin-block-start: var(--fs-space-1, 4px);
 		color: var(--fs-faint, var(--text-color-low));
 		font-family: var(--fs-font-sans);
 		font-size: var(--fs-type-xs, 11px);
 	}
-	.fs-pal-help:empty { display: none; }
+	.fs-cmd-help:empty { display: none; }
 
 	/* What a section result leaves behind after it has taken you there: the theme's accent, fading
 	 * out. Not a permanent mark and not a scroll alone — arriving at the Logging tab of a page full
 	 * of tabs, with nothing saying which one was asked for, reads as having landed in the wrong
 	 * place. `outline` rather than a border or a background: it takes no layout space, so nothing
 	 * on the page moves as it fades. */
-	.fs-pal-flash {
-		animation: fs-pal-flash 1.4s ease-out;
+	.fs-cmd-flash {
+		animation: fs-cmd-flash 1.4s ease-out;
 		border-radius: var(--fs-radius-sm, 8px);
 	}
-	@keyframes fs-pal-flash {
+	@keyframes fs-cmd-flash {
 		from { outline: 2px solid var(--fs-accent); outline-offset: 3px; }
 		to   { outline: 2px solid transparent; outline-offset: 3px; }
 	}
 	@media (prefers-reduced-motion: reduce) {
-		.fs-pal-flash { animation-duration: 1ms; }
+		.fs-cmd-flash { animation-duration: 1ms; }
 	}
 
-	.fs-pal-line {
+	.fs-cmd-line {
 		display: flex; align-items: center;
 		padding: var(--fs-space-2-5, 10px) var(--fs-space-4);
 	}
@@ -121,11 +121,11 @@
 	 * (0,1,1) and outranks a single class in the same layer whatever the source order, which would
 	 * paint a frame, a fill and a focus ring inside a bar that IS the field. 16px so iOS Safari
 	 * does not zoom the page when the field takes focus, which it does the moment `:` is pressed. */
-	.fs-pal-line .fs-pal-input {
+	.fs-cmd-line .fs-cmd-input {
 		flex: 1 1 auto; min-width: 0;
 		margin: 0; padding: 0; border: 0; min-height: 0; background: transparent;
 		color: var(--fs-text);
 		font-family: inherit; font-size: var(--fs-type-lg, 16px); line-height: 1.4;
 	}
-	.fs-pal-line .fs-pal-input:focus { outline: none; box-shadow: none; }
+	.fs-cmd-line .fs-cmd-input:focus { outline: none; box-shadow: none; }
 }

@@ -1,4 +1,4 @@
-/* T1 for luci-app-footstrap-palette against the agent stand.
+/* T1 for luci-app-footstrap-cmd against the agent stand.
  *
  * Everything here is a live assertion against a running router — no mocks, no fixtures. The parts
  * that matter most are the ones a parser cannot see: whether the stylesheet is still ENABLED after
@@ -53,27 +53,27 @@ await page.waitForTimeout(2500);
 
 /* ---- 1. the plugin is registered and loaded ---- */
 const plugins = await page.evaluate(() => window.__fsPlugins || null);
-ok('__fsPlugins names fs-palette', Array.isArray(plugins) && plugins.includes('fs-palette'), JSON.stringify(plugins));
+ok('__fsPlugins names fs-cmd', Array.isArray(plugins) && plugins.includes('fs-cmd'), JSON.stringify(plugins));
 
 const sources = await page.evaluate(() => (window.__fsSearchSources || []).length);
 ok('__fsSearchSources registered', sources >= 1, sources + ' source(s)');
 
 /* ---- 2. the stylesheet: present, marked, and still alive after a navigation ---- */
 const sheet0 = await page.evaluate(() => {
-	const l = document.getElementById('fs-palette-css');
+	const l = document.getElementById('fs-cmd-css');
 	if (!l) return { found: false };
 	return { found: true, shell: l.hasAttribute('data-fs-shell'), v: /\?v=/.test(l.href), disabled: !!l.disabled };
 });
-ok('palette.css <link> present', sheet0.found);
-ok('palette.css marked data-fs-shell', sheet0.shell === true);
-ok('palette.css carries ?v=', sheet0.v === true);
+ok('cmd.css <link> present', sheet0.found);
+ok('cmd.css marked data-fs-shell', sheet0.shell === true);
+ok('cmd.css carries ?v=', sheet0.v === true);
 
 /* the bar has to actually be painted, not merely linked: this is the assertion that would have
  * caught both the data-fs-shell bug and a csstidy-mangled sheet */
 await page.keyboard.press(':');
 await page.waitForTimeout(900);
 const styled0 = await page.evaluate(() => {
-	const el = document.getElementById('fs-pal');
+	const el = document.getElementById('fs-cmd');
 	if (!el || el.hidden) return null;
 	const cs = getComputedStyle(el);
 	return { position: cs.position, zIndex: cs.zIndex, bottom: cs.bottom };
@@ -89,13 +89,13 @@ await page.waitForTimeout(300);
 await page.goto(BASE + '/cgi-bin/luci/admin/system/system', { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(2500);
 const sheet1 = await page.evaluate(() => {
-	const l = document.getElementById('fs-palette-css');
+	const l = document.getElementById('fs-cmd-css');
 	if (!l) return { found: false };
 	let rules = -1;
 	try { rules = l.sheet ? l.sheet.cssRules.length : -1; } catch (e) { rules = -2; }
 	return { found: true, disabled: !!l.disabled, media: l.media, rules };
 });
-ok('palette.css survives a navigation', sheet1.found && !sheet1.disabled && sheet1.rules > 0, JSON.stringify(sheet1));
+ok('cmd.css survives a navigation', sheet1.found && !sheet1.disabled && sheet1.rules > 0, JSON.stringify(sheet1));
 
 /* ---- 4. commands ----
  *
@@ -114,16 +114,16 @@ async function openBar() {
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(200);
 	await page.keyboard.press(':');
-	await page.waitForSelector('.fs-pal-input', { state: 'attached', timeout: 8000 });
+	await page.waitForSelector('.fs-cmd-input', { state: 'attached', timeout: 8000 });
 	await page.waitForTimeout(350);
-	const open = await page.evaluate(() => { const r = document.getElementById('fs-pal'); return !!r && !r.hidden; });
+	const open = await page.evaluate(() => { const r = document.getElementById('fs-cmd'); return !!r && !r.hidden; });
 	if (!open) throw new Error('the bar did not open — refusing to type into the page');
 }
 
 async function runCmd(line) {
 	await openBar();
 	await page.evaluate((l) => {
-		const i = document.querySelector('.fs-pal-input');
+		const i = document.querySelector('.fs-cmd-input');
 		i.value = l;
 		i.dispatchEvent(new Event('input', { bubbles: true }));
 	}, line);
@@ -137,8 +137,8 @@ async function runCmd(line) {
 	let text = '';
 	for (;;) {
 		const st = await page.evaluate(() => {
-			const r = document.getElementById('fs-pal');
-			const o = document.querySelector('.fs-pal-out');
+			const r = document.getElementById('fs-cmd');
+			const o = document.querySelector('.fs-cmd-out');
 			return { closed: !r || r.hidden, text: o && !o.hidden ? o.textContent : '' };
 		});
 		text = st.text;
@@ -205,18 +205,18 @@ ok(':reload is offered and documented', /:reload/.test(helpReload), helpReload.s
  * there is deliberately nothing to print. */
 await openBar();
 await page.evaluate(() => {
-	const i = document.querySelector('.fs-pal-input');
+	const i = document.querySelector('.fs-cmd-input');
 	i.value = ':e wireless';
 	i.dispatchEvent(new Event('input', { bubbles: true }));
 });
 await page.waitForTimeout(400);
-const eCands = await page.evaluate(() => Array.from(document.querySelectorAll('.fs-pal-cand')).map((e) => e.textContent));
+const eCands = await page.evaluate(() => Array.from(document.querySelectorAll('.fs-cmd-cand')).map((e) => e.textContent));
 ok(':e completes over the menu', eCands.some((c) => /admin\/network\/wireless/.test(c)), eCands.slice(0, 3).join(' | '));
 await page.keyboard.press('Enter');
 await page.waitForTimeout(3000);
 const url = page.url();
 ok(':e navigated to the page', /network\/wireless/.test(url), url);
-const barGone = await page.evaluate(() => { const r = document.getElementById('fs-pal'); return !r || r.hidden; });
+const barGone = await page.evaluate(() => { const r = document.getElementById('fs-cmd'); return !r || r.hidden; });
 ok(':e closed the bar behind it', barGone);
 
 /* a page that matches nothing must say so rather than navigate somewhere arbitrary */
@@ -226,13 +226,13 @@ ok(':e reports an unmatched page', /no page matches/.test(eBad), eBad);
 /* :q is vim's, and it is the one command whose whole effect is that the bar goes away */
 await openBar();
 await page.evaluate(() => {
-	const i = document.querySelector('.fs-pal-input');
+	const i = document.querySelector('.fs-cmd-input');
 	i.value = ':q';
 	i.dispatchEvent(new Event('input', { bubbles: true }));
 });
 await page.keyboard.press('Enter');
 await page.waitForTimeout(600);
-ok(':q closes the bar', await page.evaluate(() => { const r = document.getElementById('fs-pal'); return !r || r.hidden; }));
+ok(':q closes the bar', await page.evaluate(() => { const r = document.getElementById('fs-cmd'); return !r || r.hidden; }));
 
 /* ---- 4c. the commands a probe can safely run against a live router ----
  *
@@ -314,7 +314,7 @@ await page.waitForTimeout(2000);
 const beforeBack = page.url();
 await openBar();
 await page.evaluate(() => {
-	const i = document.querySelector('.fs-pal-input');
+	const i = document.querySelector('.fs-cmd-input');
 	i.value = ':back';
 	i.dispatchEvent(new Event('input', { bubbles: true }));
 });
@@ -328,18 +328,18 @@ await page.waitForTimeout(200);
 await page.keyboard.press(':');
 await page.waitForTimeout(600);
 await page.evaluate(() => {
-	const i = document.querySelector('.fs-pal-input');
+	const i = document.querySelector('.fs-cmd-input');
 	i.value = ':restart ';
 	i.dispatchEvent(new Event('input', { bubbles: true }));
 });
 await page.waitForTimeout(400);
-const cands = await page.evaluate(() => Array.from(document.querySelectorAll('.fs-pal-cand')).map((e) => e.textContent));
+const cands = await page.evaluate(() => Array.from(document.querySelectorAll('.fs-cmd-cand')).map((e) => e.textContent));
 ok(':restart completes from rc list', cands.length > 3 && cands.some((c) => /dnsmasq|network|uhttpd/.test(c)), cands.length + ' candidates');
-ok('candidates are buttons (clickable)', await page.evaluate(() => { const c = document.querySelector('.fs-pal-cand'); return !!c && c.tagName === 'BUTTON'; }));
+ok('candidates are buttons (clickable)', await page.evaluate(() => { const c = document.querySelector('.fs-cmd-cand'); return !!c && c.tagName === 'BUTTON'; }));
 
 await page.keyboard.press('Tab');
 await page.waitForTimeout(300);
-const afterTab = await page.evaluate(() => document.querySelector('.fs-pal-input').value);
+const afterTab = await page.evaluate(() => document.querySelector('.fs-cmd-input').value);
 ok('Tab fills the line', /^:restart \S/.test(afterTab), afterTab);
 
 /* ---- 5b. the strip is a listbox, and the field says so ----
@@ -348,9 +348,9 @@ ok('Tab fills the line', /^:restart \S/.test(afterTab), afterTab);
  * the field's value for no announced reason. Checked on the live DOM rather than in the source,
  * because the shape only holds once drawHint() has run. */
 const aria = await page.evaluate(() => {
-	const i = document.querySelector('.fs-pal-input');
-	const l = document.getElementById('fs-pal-list');
-	const opts = Array.from(document.querySelectorAll('.fs-pal-cand'));
+	const i = document.querySelector('.fs-cmd-input');
+	const l = document.getElementById('fs-cmd-list');
+	const opts = Array.from(document.querySelectorAll('.fs-cmd-cand'));
 	return {
 		role: i.getAttribute('role'),
 		controls: i.getAttribute('aria-controls'),
@@ -363,31 +363,31 @@ const aria = await page.evaluate(() => {
 		selected: opts.filter((o) => o.getAttribute('aria-selected') === 'true').length
 	};
 });
-ok('the input is a combobox over the list', aria.role === 'combobox' && aria.controls === 'fs-pal-list', JSON.stringify(aria));
+ok('the input is a combobox over the list', aria.role === 'combobox' && aria.controls === 'fs-cmd-list', JSON.stringify(aria));
 ok('the strip is a listbox of options only', aria.listRole === 'listbox' && aria.optRoles && aria.nonOptions === 0, JSON.stringify(aria));
 ok('aria-expanded is true while candidates show', aria.expanded === 'true', aria.expanded);
-ok('the Tab-cycled candidate is the active descendant', aria.active === 'fs-pal-cand-0' && aria.selected === 1, aria.active + ' selected=' + aria.selected);
+ok('the Tab-cycled candidate is the active descendant', aria.active === 'fs-cmd-cand-0' && aria.selected === 1, aria.active + ' selected=' + aria.selected);
 
 /* ---- 6. focus returns on close ---- */
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 const focusAfterClose = await page.evaluate(() => document.activeElement && document.activeElement.className);
-ok('closing does not strand focus on the hidden input', !/fs-pal-input/.test(String(focusAfterClose)), String(focusAfterClose));
+ok('closing does not strand focus on the hidden input', !/fs-cmd-input/.test(String(focusAfterClose)), String(focusAfterClose));
 
 /* ---- 7. the section index ---- */
-const stats = await page.evaluate(() => window.L.require('fs-palette-sections').then((m) => m.stats()));
+const stats = await page.evaluate(() => window.L.require('fs-cmd-sections').then((m) => m.stats()));
 ok('section index has pages', stats.pages > 0, JSON.stringify(stats));
 ok('section index has rows', stats.rows > 0, stats.rows + ' rows');
 
 /* Status -> Overview is a `template` action, not a view. Testing action.type directly left it out
  * of the index entirely, so its sections were harvested on every visit and never returned. */
-const overview = await page.evaluate(() => window.L.require('fs-palette-sections')
+const overview = await page.evaluate(() => window.L.require('fs-cmd-sections')
 	.then((m) => m.pages().filter((j) => j.path === 'admin/status/overview').length));
 ok('the template-action page is indexed too', overview === 1, 'admin/status/overview x' + overview);
 
 /* depth and trail have to agree with the theme's own walk, or ranking is off by a constant and
  * every trail is prefixed with the mode's title */
-const shape = await page.evaluate(() => window.L.require('fs-palette-sections').then((m) => {
+const shape = await page.evaluate(() => window.L.require('fs-cmd-sections').then((m) => {
 	const rows = m.entries();
 	const r = rows.find((x) => x.path === 'admin/system/system') || rows[0];
 	return r ? { path: r.path, depth: r.depth, trail: r.trail, key: r.key } : null;

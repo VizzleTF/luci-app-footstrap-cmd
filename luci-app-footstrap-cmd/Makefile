@@ -6,21 +6,21 @@
 
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=luci-app-footstrap-palette
+PKG_NAME:=luci-app-footstrap-cmd
 # luci.mk keys hook names on LUCI_NAME, which defaults to the checkout's directory name — a
 # differently-named checkout symlinked into the feed would silently skip the Build/Prepare hook.
-LUCI_NAME:=luci-app-footstrap-palette
+LUCI_NAME:=luci-app-footstrap-cmd
 
 # Version is git-derived; never hardcode PKG_VERSION. CI injects FOOTSTRAP_VERSION from the tag (an
 # SDK build has no .git, so it cannot derive one). This package has its own repo and its own tags:
-# the number here is the palette's alone and does not track the theme's.
+# the number here is this package's alone and does not track the theme's.
 FOOTSTRAP_VERSION?=
 ifneq ($(FOOTSTRAP_VERSION),)
 PKG_VERSION:=$(FOOTSTRAP_VERSION)
 PKG_RELEASE:=1
 endif
 
-LUCI_TITLE:=Command palette and section search for the Footstrap theme
+LUCI_TITLE:=A `:` command line and section search for the Footstrap theme
 # +luci-theme-footstrap: every module here is loaded BY the theme's chrome (it requires whatever
 # `footstrap.settings.plugin` names) and three of them require the theme's own fs-menutree,
 # fs-router and fs-prefs. Installed without the theme this package is inert, not broken — but there
@@ -33,7 +33,7 @@ LUCI_TITLE:=Command palette and section search for the Footstrap theme
 LUCI_DEPENDS:=+luci-base +luci-theme-footstrap
 LUCI_PKGARCH:=all
 LUCI_MAINTAINER:=VizzleTF <vizzletf47@gmail.com>
-LUCI_URL:=https://github.com/VizzleTF/luci-app-footstrap-palette
+LUCI_URL:=https://github.com/VizzleTF/luci-app-footstrap-cmd
 LUCI_DESCRIPTION:=Adds a vim-style `:` command line and search over the sections inside a page to \
 the Footstrap theme. Client-side only, and it ships no ACL of its own: every command runs against \
 an ubus object some LuCI module already grants, and is offered only when the menu node carrying \
@@ -45,7 +45,7 @@ PKG_LICENSE_FILES:=LICENSE
 # CSS: ship verbatim. luci.mk defaults LUCI_MINIFY_CSS to 1, which runs csstidy over every *.css
 # under htdocs/ — and csstidy predates @layer by fifteen years. Measured on this package's sheet,
 # csstidy 1.x, `--template=highest --remove_last_semicolon=true`: 3851 bytes in, 1327 out, EXIT 0.
-# It drops the `@layer theme { … }` wrapper and the `.fs-pal` rule inside it whole (so the bar
+# It drops the `@layer theme { … }` wrapper and the `.fs-cmd` rule inside it whole (so the bar
 # loses position, z-index, background, blur and shadow and renders as an unstyled block in the page
 # flow), reduces @keyframes to a stray `to{…}` selector, and rewrites
 # `@media (prefers-reduced-motion: reduce)` into invalid `@media prefers-reduced-motion reduce`.
@@ -72,7 +72,7 @@ LUCI_MINIFY_CSS:=0
 #
 # The caches go for a separate reason: the chrome otherwise keeps serving the page a list of
 # plugins that predates this install.
-define Package/luci-app-footstrap-palette/postinst
+define Package/luci-app-footstrap-cmd/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
 	rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* >/dev/null 2>&1 || true
@@ -83,7 +83,7 @@ endef
 
 # Removing the package leaves `footstrap.settings.plugin` naming a module that is no longer on disk;
 # the chrome logs the failed require and carries on, but the config would stay wrong forever.
-define Package/luci-app-footstrap-palette/postrm
+define Package/luci-app-footstrap-cmd/postrm
 #!/bin/sh
 # opkg runs the OLD package's postrm with arg "upgrade" during a version upgrade and "remove" on a
 # real removal. On upgrade this script MUST change nothing: de-registering the plugin here would
@@ -93,7 +93,7 @@ define Package/luci-app-footstrap-palette/postrm
 # package's pre/post-upgrade), so guarding on the arg is correct for both managers.
 case "$$1" in *upgrade*) exit 0 ;; esac
 [ -n "$${IPKG_INSTROOT}" ] || {
-	uci -q del_list footstrap.settings.plugin=fs-palette && uci -q commit footstrap
+	uci -q del_list footstrap.settings.plugin=fs-cmd && uci -q commit footstrap
 	rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* >/dev/null 2>&1 || true
 }
 exit 0
@@ -106,7 +106,7 @@ include $(TOPDIR)/feeds/luci/luci.mk
 # PKG_LICENSE_FILES resolves against THAT — so the Apache text has to be put there by hand or the
 # declaration above points at nothing. The hook name is keyed on LUCI_NAME, which is pinned at the
 # top for exactly this reason.
-define Build/Prepare/luci-app-footstrap-palette
+define Build/Prepare/luci-app-footstrap-cmd
 	$(CP) $(CURDIR)/LICENSE $(PKG_BUILD_DIR)/
 endef
 

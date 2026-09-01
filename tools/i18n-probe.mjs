@@ -7,7 +7,7 @@
  *
  * This is the one claim about po/ that reading the files cannot settle. `update-po.sh --check`
  * proves the catalogue is complete and current; the build log proves po2lmo ran. Neither proves
- * that LuCI finds `footstrap-palette.<lang>.lmo` and that _() resolves through it -- and an
+ * that LuCI finds `footstrap-cmd.<lang>.lmo` and that _() resolves through it -- and an
  * uncompiled _() falls through to its English msgid with nothing reporting it, so the failure mode
  * is silence.
  *
@@ -39,10 +39,10 @@ await p.goto(BASE + '/cgi-bin/luci/admin/status/overview', { waitUntil: 'domcont
 await p.waitForTimeout(3000);
 await p.evaluate(() => { try { document.activeElement && document.activeElement.blur(); } catch (e) {} });
 await p.keyboard.press(':');
-await p.waitForSelector('.fs-pal-input', { timeout: 8000 });
+await p.waitForSelector('.fs-cmd-input', { timeout: 8000 });
 await p.waitForTimeout(600);
 await p.evaluate(() => {
-	const i = document.querySelector('.fs-pal-input');
+	const i = document.querySelector('.fs-cmd-input');
 	i.value = ':help';
 	i.dispatchEvent(new Event('input', { bubbles: true }));
 });
@@ -50,7 +50,7 @@ await p.keyboard.press('Enter');
 await p.waitForTimeout(3000);
 
 const out = await p.evaluate(() => {
-	const o = document.querySelector('.fs-pal-out');
+	const o = document.querySelector('.fs-cmd-out');
 	return o && !o.hidden ? o.textContent : '';
 });
 await b.close();

@@ -29,7 +29,7 @@ ok() {
 R() { docker exec "$C" sh -c "$1" 2>&1; }
 
 plugin() { R 'uci -q get footstrap.settings.plugin'; }
-installed() { case "$PM" in apk) R "apk list -I 2>/dev/null | grep -c luci-app-footstrap-palette" ;; *) R "opkg list-installed 2>/dev/null | grep -c luci-app-footstrap-palette" ;; esac; }
+installed() { case "$PM" in apk) R "apk list -I 2>/dev/null | grep -c luci-app-footstrap-cmd" ;; *) R "opkg list-installed 2>/dev/null | grep -c luci-app-footstrap-cmd" ;; esac; }
 
 echo "===== $C ($PM) <- $base ====="
 docker cp "$PKG" "$C:/tmp/$base" >/dev/null || { echo "cannot copy package into $C"; exit 2; }
@@ -39,32 +39,37 @@ docker cp "$PKG" "$C:/tmp/$base" >/dev/null || { echo "cannot copy package into 
 # "up to date" and do nothing, uci-defaults never runs, and every assertion below then fails for a
 # reason that has nothing to do with the package. A stand synced from the working tree also has
 # the files and the registration without the package, so both are cleared.
+# The i18n subpackages DEPEND on this one, so removing it while one is installed is refused and
+# the package stays -- which then fails the file assertions for a reason that is the test
+# environment and not the package. Take the dependents first.
+# shellcheck disable=SC2016  # the $() below is single-quoted on purpose: it must be evaluated by
+# the shell INSIDE the router, not by this one
 case "$PM" in
-	apk) R 'apk del luci-app-footstrap-palette' >/dev/null 2>&1 ;;
-	*)   R 'opkg remove luci-app-footstrap-palette' >/dev/null 2>&1 ;;
+	apk) R 'apk del luci-i18n-footstrap-cmd-* luci-app-footstrap-cmd' >/dev/null 2>&1 ;;
+	*)   R 'for p in $(opkg list-installed | sed -n "s/^\(luci-i18n-footstrap-cmd-[a-z_]*\) .*/\1/p"); do opkg remove "$p"; done; opkg remove luci-app-footstrap-cmd' >/dev/null 2>&1 ;;
 esac
-R 'uci -q delete footstrap.settings.plugin >/dev/null 2>&1; uci -q commit footstrap; rm -rf /www/luci-static/footstrap-palette /www/luci-static/resources/fs-palette*.js /etc/uci-defaults/40_luci-app-footstrap-palette' >/dev/null
+R 'uci -q delete footstrap.settings.plugin >/dev/null 2>&1; uci -q commit footstrap; rm -rf /www/luci-static/footstrap-cmd /www/luci-static/resources/fs-cmd*.js /etc/uci-defaults/40_luci-app-footstrap-cmd' >/dev/null
 
 case "$PM" in
-	apk)  INSTALL="apk add --allow-untrusted /tmp/$base"; REMOVE='apk del luci-app-footstrap-palette' ;;
+	apk)  INSTALL="apk add --allow-untrusted /tmp/$base"; REMOVE='apk del luci-app-footstrap-cmd' ;;
 	*)
 		# The owlab 24.10 image ships an /etc/opkg.conf with NO `arch` lines, so opkg knows no
 		# architecture at all and rejects an `all` package with "incompatible with the architectures
 		# configured". A real router has these two lines; this is a stand defect, not a package one,
 		# and adding them is restoring the stock file rather than relaxing the test.
 		R 'grep -q "^arch " /etc/opkg.conf || printf "arch all 100\narch noarch 100\narch x86_64 200\n" >> /etc/opkg.conf' >/dev/null
-		INSTALL="opkg install --force-checksum /tmp/$base"; REMOVE='opkg remove luci-app-footstrap-palette' ;;
+		INSTALL="opkg install --force-checksum /tmp/$base"; REMOVE='opkg remove luci-app-footstrap-cmd' ;;
 esac
 
 echo "--- 1. install ---"
 out=$(R "$INSTALL")
 echo "$out" | tail -5
 [ "$(installed)" -ge 1 ]; ok $? "package is installed"
-[ -n "$(R 'ls /www/luci-static/footstrap-palette/palette.css 2>/dev/null')" ]; ok $? "palette.css landed"
-[ -n "$(R 'ls /www/luci-static/resources/fs-palette.js 2>/dev/null')" ]; ok $? "fs-palette.js landed"
+[ -n "$(R 'ls /www/luci-static/footstrap-cmd/cmd.css 2>/dev/null')" ]; ok $? "cmd.css landed"
+[ -n "$(R 'ls /www/luci-static/resources/fs-cmd.js 2>/dev/null')" ]; ok $? "fs-cmd.js landed"
 # uci-defaults are run by default_postinst at install time and then deleted
-p=$(plugin); case " $p " in *" fs-palette "*) ok 0 "uci-defaults registered the plugin  [$p]" ;; *) ok 1 "uci-defaults registered the plugin" "got [$p]" ;; esac
-[ -z "$(R 'ls /etc/uci-defaults/40_luci-app-footstrap-palette 2>/dev/null')" ]; ok $? "uci-defaults script was consumed"
+p=$(plugin); case " $p " in *" fs-cmd "*) ok 0 "uci-defaults registered the plugin  [$p]" ;; *) ok 1 "uci-defaults registered the plugin" "got [$p]" ;; esac
+[ -z "$(R 'ls /etc/uci-defaults/40_luci-app-footstrap-cmd 2>/dev/null')" ]; ok $? "uci-defaults script was consumed"
 # the design rule, checked on the router this time
 [ -z "$(R 'ls /usr/share/rpcd/acl.d/ 2>/dev/null | grep -i palette')" ]; ok $? "no acl.d of ours on the router"
 
@@ -73,13 +78,13 @@ out=$(R "$INSTALL")
 echo "$out" | tail -5
 p=$(plugin)
 case " $p " in
-	*" fs-palette "*) ok 0 "plugin still registered after an upgrade  [$p]" ;;
+	*" fs-cmd "*) ok 0 "plugin still registered after an upgrade  [$p]" ;;
 	*) ok 1 "plugin still registered after an upgrade" "postrm de-registered it: [$p]" ;;
 esac
 # and exactly once: an add_list that is not idempotent lists it twice and the chrome requires it twice
 # split on spaces DELIBERATELY, one name per line, so the count is of whole tokens; quoting
 # "$p" here would put the whole list on one line and the count would always be 0
-n=$(printf '%s' "$p" | tr ' ' '\n' | grep -c '^fs-palette$')
+n=$(printf '%s' "$p" | tr ' ' '\n' | grep -c '^fs-cmd$')
 [ "$n" = 1 ]; ok $? "listed exactly once, not duplicated  [$p]"
 
 # opkg only runs the old postrm with "upgrade" when the version actually differs, and a re-install
@@ -89,11 +94,11 @@ n=$(printf '%s' "$p" | tr ' ' '\n' | grep -c '^fs-palette$')
 # skipped there rather than faked.
 if [ "$PM" != apk ]; then
 	echo "--- 2b. the postrm guard, called the way opkg calls it ---"
-	PR=/usr/lib/opkg/info/luci-app-footstrap-palette.postrm
+	PR=/usr/lib/opkg/info/luci-app-footstrap-cmd.postrm
 	R "sh $PR upgrade" >/dev/null
 	p=$(plugin)
 	case " $p " in
-		*" fs-palette "*) ok 0 "postrm 'upgrade' left the registration alone  [$p]" ;;
+		*" fs-cmd "*) ok 0 "postrm 'upgrade' left the registration alone  [$p]" ;;
 		*) ok 1 "postrm 'upgrade' left the registration alone" "de-registered: [$p]" ;;
 	esac
 fi
@@ -103,10 +108,10 @@ out=$(R "$REMOVE")
 echo "$out" | tail -5
 p=$(plugin)
 case " $p " in
-	*" fs-palette "*) ok 1 "postrm de-registered the plugin" "still [$p]" ;;
+	*" fs-cmd "*) ok 1 "postrm de-registered the plugin" "still [$p]" ;;
 	*) ok 0 "postrm de-registered the plugin  [${p:-empty}]" ;;
 esac
-[ -z "$(R 'ls /www/luci-static/resources/fs-palette.js 2>/dev/null')" ]; ok $? "files are gone"
+[ -z "$(R 'ls /www/luci-static/resources/fs-cmd.js 2>/dev/null')" ]; ok $? "files are gone"
 
 echo
 echo "$C: $pass passed, $fail failed"

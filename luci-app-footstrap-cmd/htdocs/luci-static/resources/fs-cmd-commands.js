@@ -5,12 +5,12 @@
 'require fs';
 'require fs-menutree as tree';
 'require fs-prefs as prefs';
-/* for `:e` only, and it costs nothing: fs-palette.js requires this module on every page already,
+/* for `:e` only, and it costs nothing: fs-cmd.js requires this module on every page already,
  * so by the time the first colon loads this one it is a resolved singleton. No cycle — sections
  * requires the theme's modules and never this one. */
-'require fs-palette-sections as sections';
+'require fs-cmd-sections as sections';
 
-/* The command table, and nothing else. No UI: fs-palette-cmdline owns the bar, asks suggest() what
+/* The command table, and nothing else. No UI: fs-cmd-bar owns the bar, asks suggest() what
  * to offer for the line as typed and run() to execute it, and prints whatever comes back. Split
  * because the two change for different reasons — a command is added here, a key is bound there.
  *
@@ -61,19 +61,37 @@ const callSetLocaltime = rpc.declare({ object: 'luci', method: 'setLocaltime', p
 /* ---- what this session may do ------------------------------------------- */
 
 /* The menu tree, not fs-search's index: the index is built by the module that requires THIS one,
- * and asking it back would be a require cycle. Both read the same ACL-filtered blob.
+ * and asking it back would be a require cycle. Both read the same blob.
  *
  * `nodeForSegs` and never `resolveSegs`: an alias resolves somewhere else and would answer for a
- * permission the session may not hold. */
+ * permission the session may not hold.
+ *
+ * AND `satisfied`, which is the whole gate. `/admin/menu` is NOT the pre-filtered tree this
+ * package assumed it was: it carries every node and marks the ones the session may reach. Testing
+ * presence alone therefore answered "yes" for everything, and the gate had never once refused
+ * anything — invisible in every test because they all ran as root, where every node is satisfied.
+ *
+ * Measured on a stand with a login holding only luci-base, the theme and luci-mod-status-index:
+ * `admin/system/reboot`, `admin/network/network`, `admin/network/wireless`, `admin/status/logs`
+ * and `admin/status/processes` are all PRESENT with `satisfied: false`, while
+ * `admin/status/overview` is present and satisfied. The bar was offering that session `:restart`,
+ * `:ifup`, `:wifi` and the rest.
+ *
+ * Nothing could be executed that way — rpcd refuses the call regardless, which is why this was a
+ * false promise rather than a privilege escalation — but the promise is in the README and it is
+ * the reason this package ships no acl.d. Falsy is unsatisfied, which is how the theme's own
+ * childrenOf() reads it. */
 function reachable(path) {
-	return !path || !!tree.nodeForSegs(path.split('/'));
+	if (!path) return true;
+	const node = tree.nodeForSegs(path.split('/'));
+	return !!(node && node.satisfied);
 }
 
 /* `rc list` is fetched when this module is evaluated — that is already the first colon, and the
  * round trip is usually over before anyone finishes typing `:resta`. USUALLY is not a contract: on
  * a busy router it is not, and a `:restart dnsmasq` submitted first would have been answered "no
  * init script named dnsmasq", which is a lie rather than a delay. So run() waits on this, and the
- * bar re-renders its candidates when it settles (fs-palette-cmdline calls back on `ready`).
+ * bar re-renders its candidates when it settles (fs-cmd-bar calls back on `ready`).
  * suggest() stays synchronous, because it is called on every keystroke. */
 let _svc = {};
 const ready = reachable('admin/system/startup')
@@ -549,7 +567,7 @@ function parse(rest) {
 	return m ? { name: m[1].toLowerCase(), bang: m[2] === '!', gap: !!m[3], arg: (m[4] || '').trim() } : null;
 }
 
-/* ---- what the palette lists --------------------------------------------- */
+/* ---- what the bar lists ------------------------------------------------- */
 
 /* A row is { line, title, hint } — `line` is what the input becomes when the row is taken. A
  * command that still needs an argument offers a line ending in a space, so taking it completes
@@ -589,7 +607,7 @@ function suggest(rest) {
 }
 
 /* Runs a full line (with or without its colon). Resolves to a string to print, null for nothing,
- * or { nav: segs } for "the palette should navigate there".
+ * or { nav: segs } for "the bar should navigate there".
  *
  * Behind `ready`, so a command submitted before `rc list` has answered is held rather than
  * answered wrongly. Everything that does not depend on it is already resolved by then. */

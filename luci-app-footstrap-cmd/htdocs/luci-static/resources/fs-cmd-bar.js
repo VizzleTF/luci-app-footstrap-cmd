@@ -2,7 +2,7 @@
 'require baseclass';
 'require fs-router as router';
 'require fs-prefs as prefs';
-'require fs-palette-commands as commands';
+'require fs-cmd-commands as commands';
 
 /* The command line: one line on the bottom edge of the window, opened by `:`.
  *
@@ -12,7 +12,7 @@
  * cover the log. No scrim and no aria-modal for the same reason: a pointerdown anywhere else closes
  * it and the page underneath keeps working.
  *
- * Everything it knows about commands comes from fs-palette-commands: this file is the input, the
+ * Everything it knows about commands comes from fs-cmd-commands: this file is the input, the
  * candidate strip, the echo area and the keys, and nothing else. */
 
 let _root = null, _input = null, _out = null, _hint = null, _list = null, _help = null;
@@ -26,7 +26,7 @@ let _returnTo = null;
  * arrives — measured on a stand, ping's output printed over a later `:set`. */
 let _gen = 0;
 
-const HIST_KEY = 'fs-palette-history';
+const HIST_KEY = 'fs-cmd-history';
 const HIST_MAX = 50;
 
 /* prefs owns the try/catch around localStorage and the "is it really an array" guard; a private
@@ -70,10 +70,10 @@ function drawHint() {
 	_rows.slice(0, 40).forEach((r, i) => {
 		_list.appendChild(E('button', {
 			'type': 'button',
-			'id': 'fs-pal-cand-' + i,
+			'id': 'fs-cmd-cand-' + i,
 			'role': 'option',
 			'aria-selected': i === _pick ? 'true' : 'false',
-			'class': 'fs-pal-cand' + (i === _pick ? ' active' : ''),
+			'class': 'fs-cmd-cand' + (i === _pick ? ' active' : ''),
 			'title': r.hint || '',
 			'tabindex': '-1',
 			'click': (ev) => { ev.preventDefault(); take(i); }
@@ -83,7 +83,7 @@ function drawHint() {
 	_help.textContent = cur && cur.hint ? cur.hint : '';
 	_hint.hidden = false;
 	_input.setAttribute('aria-expanded', 'true');
-	if (_pick >= 0) _input.setAttribute('aria-activedescendant', 'fs-pal-cand-' + _pick);
+	if (_pick >= 0) _input.setAttribute('aria-activedescendant', 'fs-cmd-cand-' + _pick);
 	else _input.removeAttribute('aria-activedescendant');
 }
 
@@ -159,28 +159,28 @@ function histStep(dir) {
 }
 
 function build() {
-	_out = E('pre', { 'class': 'fs-pal-out', 'aria-live': 'polite', 'hidden': '' });
-	_list = E('div', { 'id': 'fs-pal-list', 'class': 'fs-pal-cands', 'role': 'listbox', 'aria-label': _('Candidates') });
-	_help = E('div', { 'class': 'fs-pal-help' });
-	_hint = E('div', { 'class': 'fs-pal-hint', 'hidden': '' }, [ _list, _help ]);
+	_out = E('pre', { 'class': 'fs-cmd-out', 'aria-live': 'polite', 'hidden': '' });
+	_list = E('div', { 'id': 'fs-cmd-list', 'class': 'fs-cmd-cands', 'role': 'listbox', 'aria-label': _('Candidates') });
+	_help = E('div', { 'class': 'fs-cmd-help' });
+	_hint = E('div', { 'class': 'fs-cmd-hint', 'hidden': '' }, [ _list, _help ]);
 	_input = E('input', {
-		'type': 'text', 'class': 'fs-pal-input', 'aria-label': _('Command'),
+		'type': 'text', 'class': 'fs-cmd-input', 'aria-label': _('Command'),
 		/* combobox over a listbox, not a bare text field: without this the candidate strip is
 		 * invisible to a screen reader and Tab appears to change the field's value for no
 		 * announced reason */
 		'role': 'combobox',
-		'aria-controls': 'fs-pal-list',
+		'aria-controls': 'fs-cmd-list',
 		'aria-expanded': 'false',
 		'aria-autocomplete': 'list',
 		'autocomplete': 'off', 'autocapitalize': 'off', 'spellcheck': 'false'
 	});
 	_root = E('div', {
-		'id': 'fs-pal', 'class': 'fs-pal',
+		'id': 'fs-cmd', 'class': 'fs-cmd',
 		/* a zone-1 root: this is parented to <body>, outside the <nav> that carries the theme's
 		 * mark, so without it the fence against foreign CSS does not cover the bar */
 		'data-fs-chrome': '',
 		'role': 'dialog', 'aria-label': _('Command line'), 'hidden': ''
-	}, [ _out, _hint, E('div', { 'class': 'fs-pal-line' }, [ _input ]) ]);
+	}, [ _out, _hint, E('div', { 'class': 'fs-cmd-line' }, [ _input ]) ]);
 	document.body.appendChild(_root);
 
 	_input.addEventListener('input', refresh);

@@ -19,7 +19,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-PKG=luci-app-footstrap-palette
+PKG=luci-app-footstrap-cmd
 RES="$PKG/htdocs/luci-static/resources"
 fail=0
 pass=0

@@ -23,7 +23,7 @@
  * The cache is keyed on `L.env.resource_version`, the same `?v=` every asset is served under, so a
  * package upgrade invalidates it and nothing else has to. */
 
-const KEY = 'fs-palette-sections';
+const KEY = 'fs-cmd-sections';
 /* Per SESSION, not per page: 256 KB is roughly a fifth of the whole corpus, so a fresh browser has
  * the complete index after five or so visits and never fetches again. It is a floor, not a cap —
  * the size of a view is not knowable before it is fetched, so the last one overshoots by its own
@@ -431,8 +431,8 @@ function refocus(el) {
 /* Says "this is the thing you asked for" and gets out of the way. A class the stylesheet animates
  * rather than an inline style, so the colour is the theme's accent token like everything else. */
 function flash(el) {
-	el.classList.add('fs-pal-flash');
-	window.setTimeout(() => el.classList.remove('fs-pal-flash'), FLASH_MS);
+	el.classList.add('fs-cmd-flash');
+	window.setTimeout(() => el.classList.remove('fs-cmd-flash'), FLASH_MS);
 }
 
 function tryLand() {
@@ -522,7 +522,7 @@ function register() {
 return baseclass.extend({
 	register,
 	entries,
-	/* Every page this session can reach, for `:e` in fs-palette-commands. Exported rather than
+	/* Every page this session can reach, for `:e` in fs-cmd-commands. Exported rather than
 	 * walked a third time: this module already owns the walk and is loaded on every page anyway, so
 	 * the command table gets the list for nothing. Already ACL-filtered, because the menu blob it
 	 * comes from is. */

@@ -1,4 +1,4 @@
-# luci-app-footstrap-palette
+# luci-app-footstrap-cmd
 
 Command line and section search for [`luci-theme-footstrap`](https://github.com/VizzleTF/luci-theme-footstrap).
 
@@ -16,9 +16,11 @@ Two things the theme's own page search does not do:
 ## It asks rpcd for nothing
 
 The package ships no ACL file. Every command runs against an object some LuCI module already grants,
-and each one is offered only when the menu node carrying that ACL group is present in the session's
-own (already ACL-filtered) `/admin/menu`. A restricted account sees fewer commands; it never gains a
-permission its LuCI user was not given.
+and each one is offered only when the menu node carrying that ACL group is **reachable** for the
+session — `/admin/menu` lists every node and marks the reachable ones, so it is that mark and not
+the node's presence that decides. A restricted account sees fewer commands; it never gains a
+permission its LuCI user was not given. Checked against a real restricted login by
+`tools/acl-gate.sh`, not argued from the code.
 
 | command | ubus / exec | the group that grants it |
 |---|---|---|
@@ -41,7 +43,7 @@ refused: rpcd execs as root, and `:ping -f` would otherwise be a root flood ping
 
 ## How it attaches to the theme
 
-`uci add_list footstrap.settings.plugin=fs-palette`, written by this package's uci-defaults. The
+`uci add_list footstrap.settings.plugin=fs-cmd`, written by this package's uci-defaults. The
 theme's chrome requires whatever that list names and knows nothing else about it, so the theme never
 mentions this package and this package needs no patch to the theme.
 

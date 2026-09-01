@@ -53,7 +53,7 @@ rootof() {
 	echo "$1"
 }
 
-for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-palette*' \) | sort); do
+for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-cmd*' \) | sort); do
 	base=$(basename "$pkg")
 	echo
 	echo "##### $base"
@@ -61,23 +61,23 @@ for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-palette*' \) | so
 	unpack "$pkg" "$d" || { ok 1 "$base unpacks"; continue; }
 	R=$(rootof "$d")
 
-	CSS="$R/www/luci-static/footstrap-palette/palette.css"
-	[ -f "$CSS" ]; ok $? "palette.css is at /www/luci-static/footstrap-palette/"
+	CSS="$R/www/luci-static/footstrap-cmd/cmd.css"
+	[ -f "$CSS" ]; ok $? "cmd.css is at /www/luci-static/footstrap-cmd/"
 
 	if [ -f "$CSS" ]; then
 		# The csstidy assertions. csstidy drops the @layer wrapper AND the rule inside it, reduces
 		# @keyframes to a bare `to{…}` and rewrites the media query into something invalid.
 		grep -q '@layer theme' "$CSS"; ok $? "  @layer theme survived the build"
-		grep -q '\.fs-pal[ ,{]' "$CSS"; ok $? "  the .fs-pal rule survived"
-		grep -q 'position:[[:space:]]*fixed' "$CSS"; ok $? "  .fs-pal still has position:fixed"
-		grep -q '@keyframes[[:space:]]*fs-pal-flash' "$CSS"; ok $? "  @keyframes fs-pal-flash survived"
+		grep -q '\.fs-cmd[ ,{]' "$CSS"; ok $? "  the .fs-cmd rule survived"
+		grep -q 'position:[[:space:]]*fixed' "$CSS"; ok $? "  .fs-cmd still has position:fixed"
+		grep -q '@keyframes[[:space:]]*fs-cmd-flash' "$CSS"; ok $? "  @keyframes fs-cmd-flash survived"
 		grep -q 'prefers-reduced-motion:[[:space:]]*reduce' "$CSS"; ok $? "  the reduced-motion query is still valid"
 		# the token fallbacks: without them 15 of 21 names resolve to nothing on a mangled theme
 		grep -q 'var(--fs-glass,[[:space:]]*var(--background-color-high))' "$CSS"; ok $? "  colour falls back to the export tier"
 		grep -q 'var(--fs-z-popover,[[:space:]]*850)' "$CSS"; ok $? "  z-index has a literal fallback"
 	fi
 
-	for f in fs-palette.js fs-palette-sections.js fs-palette-cmdline.js fs-palette-commands.js; do
+	for f in fs-cmd.js fs-cmd-sections.js fs-cmd-bar.js fs-cmd-commands.js; do
 		J="$R/www/luci-static/resources/$f"
 		[ -f "$J" ] || { ok 1 "  $f shipped"; continue; }
 		# jsmin ran (comments gone) and the result still parses — the regex-after-return trap
@@ -91,7 +91,7 @@ for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-palette*' \) | so
 		ok $? "  $f parses after minification"
 	done
 
-	UCID="$R/etc/uci-defaults/40_luci-app-footstrap-palette"
+	UCID="$R/etc/uci-defaults/40_luci-app-footstrap-cmd"
 	[ -f "$UCID" ]; ok $? "  uci-defaults script shipped"
 
 	# the design rule: no acl.d of our own, ever
@@ -133,12 +133,12 @@ echo
 echo "##### i18n"
 # `owlab build -out` copies out only the NAMED package, so the i18n subpackage never reaches dist/
 # even when the SDK builds it. The proof is in the build log: luci.mk runs po2lmo per language and
-# stages luci-i18n-footstrap-palette-<lang>. Point $T2_BUILD_LOG at it.
+# stages luci-i18n-footstrap-cmd-<lang>. Point $T2_BUILD_LOG at it.
 LOG="${T2_BUILD_LOG:-}"
 if [ -n "$LOG" ] && [ -f "$LOG" ]; then
-	grep -q 'po2lmo .*po/ru/footstrap-palette\.po' "$LOG"; ok $? "po2lmo compiled the ru catalogue"
-	grep -q 'i18n/footstrap-palette\.ru\.lmo' "$LOG"; ok $? "it produced footstrap-palette.ru.lmo"
-	grep -q 'luci-i18n-footstrap-palette-ru' "$LOG"; ok $? "the luci-i18n-footstrap-palette-ru subpackage was staged"
+	grep -q 'po2lmo .*po/ru/footstrap-cmd\.po' "$LOG"; ok $? "po2lmo compiled the ru catalogue"
+	grep -q 'i18n/footstrap-cmd\.ru\.lmo' "$LOG"; ok $? "it produced footstrap-cmd.ru.lmo"
+	grep -q 'luci-i18n-footstrap-cmd-ru' "$LOG"; ok $? "the luci-i18n-footstrap-cmd-ru subpackage was staged"
 else
 	echo "  (skipped: set T2_BUILD_LOG to the owlab build log)"
 fi
