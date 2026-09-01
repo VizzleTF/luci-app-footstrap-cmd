@@ -28,8 +28,11 @@ unpack() {
 	# apk v3 is OpenWrt's ADB container ("ADBd" magic), not an archive tar can read. Unpack it with
 	# the apk on a running 25.12 router — the only apk-tools v3 within reach.
 	if [ "$(head -c 4 "$pkg")" = 'ADBd' ]; then
-		C="${APK_CONTAINER:-owlab-luci-theme-footstrap-agent-agent2512}"
-		docker exec "$C" sh -c 'rm -rf /tmp/t2x && mkdir -p /tmp/t2x' 2>/dev/null || return 1
+		# No router within reach means no apk-tools v3, and the .apk cannot be opened at all.
+		# Reported as SKIPPED rather than FAILED: CI has no stand, and a gate that cannot run is
+		# not the same statement as one that ran and found something.
+		C="${APK_CONTAINER:-owlab-luci-app-footstrap-cmd-cmd2512}"
+		docker exec "$C" sh -c 'rm -rf /tmp/t2x && mkdir -p /tmp/t2x' 2>/dev/null || return 2
 		docker cp "$pkg" "$C:/tmp/t2x.apk" >/dev/null 2>&1 || return 1
 		docker exec "$C" sh -c 'cd /tmp/t2x && apk extract --allow-untrusted --destination . /tmp/t2x.apk >/dev/null 2>&1 || tar -xf /tmp/t2x.apk 2>/dev/null' || true
 		docker cp "$C:/tmp/t2x/." "$dest" >/dev/null 2>&1 || return 1
@@ -58,7 +61,14 @@ for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-cmd*' \) | sort);
 	echo
 	echo "##### $base"
 	d="$WORK/$(echo "$base" | tr -c 'A-Za-z0-9' '_')"
-	unpack "$pkg" "$d" || { ok 1 "$base unpacks"; continue; }
+	unpack "$pkg" "$d"
+	_u=$?
+	if [ "$_u" = 2 ]; then
+		printf 'SKIP  %s — an .apk needs apk-tools v3, and no router is reachable\n' "$base"
+		printf '      (set APK_CONTAINER, or run this where a stand is up)\n'
+		continue
+	fi
+	[ "$_u" = 0 ] || { ok 1 "$base unpacks"; continue; }
 	R=$(rootof "$d")
 
 	CSS="$R/www/luci-static/footstrap-cmd/cmd.css"
@@ -111,7 +121,10 @@ for pkg in $(find "$DIST" -type f \( -name 'luci-app-footstrap-cmd*' \) | sort);
 		case "$ADB" in *"luci-theme-footstrap"*) ok 0 "  depends on the theme" ;; *) ok 1 "  depends on the theme" ;; esac
 	else
 		CTRL=$(cat "$d"/control/postrm "$d"/postrm 2>/dev/null)
-		CTRLI=$(cat "$d"/control/postinst-pkg "$d"/postinst-pkg 2>/dev/null)
+		# The SDK writes OUR body to CONTROL/postinst-pkg and generates a CONTROL/postinst that
+		# calls default_postinst; owfeed INLINES the body into CONTROL/postinst after that same
+		# call. Both are correct, so both are read and the assertion is on the content.
+		CTRLI=$(cat "$d"/control/postinst-pkg "$d"/postinst-pkg "$d"/control/postinst 2>/dev/null)
 		grep -q 'luci-theme-footstrap' "$d"/control/control 2>/dev/null; ok $? "  depends on the theme"
 		LIC=1
 		find "$d" -name 'LICENSE' | grep -q . && LIC=0

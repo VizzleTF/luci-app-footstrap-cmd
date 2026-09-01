@@ -20,6 +20,8 @@ on:
     branches: [ main ]
   pull_request:
   workflow_dispatch:
+  # called by release.yml, so a tag cannot publish past a red gate
+  workflow_call:
 
 permissions:
   contents: read
