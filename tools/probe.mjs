@@ -82,6 +82,26 @@ ok('bar opens on ":"', styled0 !== null);
 ok('bar is position:fixed from the sheet', styled0 && styled0.position === 'fixed', JSON.stringify(styled0));
 ok('bar has a real z-index', styled0 && styled0.zIndex !== 'auto', styled0 && styled0.zIndex);
 
+/* The bar is a DETACHED surface aligned to the content column, not a strip welded to three edges.
+ * Asserted against `#view` rather than against a number, because the gutter is `--fs-content-pad`
+ * on desktop and `--fs-space-4` below 768px and follows the density axis — a literal here would
+ * pass at one width and one density only. A mangled or csstidy-eaten sheet loses the width calc
+ * and the bar goes back to full bleed, which is exactly what this catches. */
+const aligned = await page.evaluate(() => {
+        const bar = document.getElementById('fs-cmd').getBoundingClientRect();
+        const view = document.querySelector('#view').getBoundingClientRect();
+        const cs = getComputedStyle(document.getElementById('fs-cmd'));
+        return {
+                barL: Math.round(bar.x), barR: Math.round(innerWidth - bar.right),
+                viewL: Math.round(view.x), viewR: Math.round(innerWidth - view.right),
+                gap: Math.round(innerHeight - bar.bottom),
+                radius: cs.borderTopLeftRadius, clipped: cs.overflow
+        };
+});
+ok('the bar lines up with the content column', aligned.barL === aligned.viewL && aligned.barR === aligned.viewR, JSON.stringify(aligned));
+ok('the bar stands off the bottom edge', aligned.gap > 0, aligned.gap + 'px');
+ok('the bar is rounded and clips its dividers', aligned.radius !== '0px' && aligned.clipped === 'hidden', aligned.radius + ' / ' + aligned.clipped);
+
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 

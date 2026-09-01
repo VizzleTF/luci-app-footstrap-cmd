@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.1 — 2026-09-01
+
+### Changed
+
+- **The command line is a detached surface instead of a strip welded to the window.** It sat flush
+  against three edges, which is vim's shape and reads as part of the frame rather than as something
+  the page put there — and beside the theme's rail or sidebar it looked like a rendering fault. It
+  now floats with the theme's own shape for a detached surface, taken from `.fs-search-box`: full
+  hairline, `--fs-radius-lg`, `--fs-shadow-pop` and `overflow: hidden`, the last of which is
+  load-bearing rather than tidy — the echo area and the candidate strip carry their own
+  `border-block-end`, and without clipping those square dividers cut across the rounded corners.
+
+  Its WIDTH is the content column's, not a margin picked by eye: a first attempt at a flat 16px
+  came out wider than the cards above it. The theme names that gutter `--fs-content-pad` and caps
+  the column at `--fs-content-max`, and it had already solved this exact problem for
+  `ui.addNotification` — including the trap its comment records, that below 768px the gutter is
+  `--fs-space-4` instead, so the desktop calc leaves the bar 24px narrower than the content and
+  hugging one edge. That shape is reused whole. Measured against `#view` at five widths: 348/348 at
+  1920 (capped), 28/28 at 1280 and 900, 16/16 at 700 and 380 — the bar's edges and the content's
+  agree at every one.
+
+  `tools/probe.mjs` asserts the alignment against `#view` rather than against a number, because the
+  gutter follows both the viewport tier and the density axis; a literal would pass at one width and
+  one density only. It also catches a csstidy-eaten or mangled sheet, which loses the width calc and
+  puts the bar back to full bleed.
+
 ## 0.1.0 — 2026-09-01
 
 First tagged release. The package existed before this as a prototype; what changed is that the

@@ -34,17 +34,57 @@
  *     whatever the reader chose. That is a visible degradation and not a broken bar, which is the
  *     trade the export tier does not offer: there is no public tier for space or type. */
 @layer theme {
+	/* A DETACHED surface, not a strip welded to the window. It sat flush against three edges,
+	 * which is vim's shape and reads as part of the frame rather than as something the page put
+	 * there — and against the theme's rail or sidebar it looked like a rendering fault rather than
+	 * a choice.
+	 *
+	 * The shape is the theme's own, taken from `.fs-search-box`: full hairline, `--fs-radius-lg`,
+	 * `--fs-shadow-pop`, `overflow: hidden`. Two floating surfaces in one chrome that round their
+	 * corners differently is the kind of difference nobody can name and everybody sees.
+	 *
+	 * `overflow: hidden` is load-bearing rather than tidy: the echo area and the candidate strip
+	 * carry their own `border-block-end`, and without clipping those square dividers cut across
+	 * the rounded corners. The echo area keeps its own `overflow: auto`, so it still scrolls.
+	 *
+	 * `--fs-radius-lg` is 12px on the theme at density 1 and does NOT survive the token mangle, so
+	 * the literal is the one that renders on a real install. `--fs-content-pad` and
+	 * `--fs-content-max` both survive it and are used without a literal of their own.
+	 *
+	 * The WIDTH is the content column's, not a margin of our own choosing: the bar lines up with
+	 * the cards above it at every width and stops at `--fs-content-max` instead of stretching
+	 * across an ultrawide display. This is the shape the theme already uses for `ui.addNotification`
+	 * (`.fs-main > .alert-message`), including the phone tier below — its comment records the trap,
+	 * measured: below 768px the content gutter is `--fs-space-4` and not `--fs-content-pad`, so the
+	 * desktop calc leaves the bar 24px narrower than the content and hugging the left edge. */
 	.fs-cmd {
-		position: fixed; inset: auto 0 0 0;
+		position: fixed;
+		inset: auto 0 var(--fs-space-4) 0;
+		width: calc(100% - var(--fs-content-pad, 28px) * 2);
+		max-width: calc(var(--fs-content-max, 1280px) - var(--fs-content-pad, 28px) * 2);
+		margin-inline: auto;
 		z-index: var(--fs-z-popover, 850);
 		display: flex; flex-direction: column;
 		background: var(--fs-glass, var(--background-color-high));
 		backdrop-filter: var(--fs-blur, blur(12px));
 		-webkit-backdrop-filter: var(--fs-blur, blur(12px));
-		border-block-start: var(--fs-hairline, 1px solid var(--border-color-medium));
+		border: var(--fs-hairline, 1px solid var(--border-color-medium));
+		border-radius: var(--fs-radius-lg, 12px);
+		overflow: hidden;
 		box-shadow: var(--fs-shadow-pop, 0 12px 34px rgba(0, 0, 0, .30));
 		font-family: var(--fs-font-mono);
 		font-size: var(--fs-type, 13px);
+	}
+
+	/* Below 768px the theme's content gutter is --fs-space-4, so the desktop calc above would put
+	 * the bar 24px inside the content on one side and against it on the other. `width: auto` with
+	 * side insets matches the column exactly at any width in this tier — the theme's own note on
+	 * `.alert-message`, arrived at by measurement rather than by arithmetic. */
+	@media (max-width: 767px) {
+		.fs-cmd {
+			inset: auto var(--fs-space-4) var(--fs-space-4) var(--fs-space-4);
+			width: auto; max-width: none;
+		}
 	}
 
 	/* The echo area, capped and scrollable: `:services` prints 44 rows on a stock router and
