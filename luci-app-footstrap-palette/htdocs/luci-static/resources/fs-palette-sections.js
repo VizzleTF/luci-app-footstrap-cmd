@@ -33,6 +33,12 @@ const BUDGET = 256 * 1024;
 /* A page carries between 2 and 8 of these; 24 is a third-party app with a section per feature. */
 const MAX_PER_PAGE = 24;
 const TITLE_MIN = 2, TITLE_MAX = 60;
+/* The theme's own, and it has to be: a row this walk does not reach is a row fs-search ranks
+ * against pages that go one level deeper than it does. fs-search.js: `const MAX_DEPTH = 4`. */
+const MAX_DEPTH = 4;
+/* A view that never answers must not hold the queue: harvestSource() is the only thing that calls
+ * idle() again, so one socket left open by a router mid-reboot would end the session's indexing. */
+const FETCH_MS = 10000;
 
 let _cache = { v: null, pages: {} };
 let _spent = 0;
@@ -84,7 +90,12 @@ function record(path, titles) {
 const DOM_SEL = '#view h2, #view legend, #view .cbi-section > h3, #view .cbi-tabmenu > li > a, #view .cbi-map > h2';
 
 function harvestDom(segs) {
-	const path = (segs || []).join('/');
+	/* Only a path build() will read back. A navigation resolves to whatever the dispatcher landed
+	 * on, which is not always a node this walk indexes — `admin/status/overview` renders from a
+	 * template rather than a view on some releases — and recording one of those wrote a row into
+	 * localStorage on every visit that no search could ever return. Attributing to the nearest
+	 * indexed ancestor is the useful half of that: a tab's sections belong to the page above it. */
+	const path = jobPathFor(segs || []);
 	if (!path) return;
 	const found = [];
 	document.querySelectorAll(DOM_SEL).forEach((el) => found.push(el.textContent));
@@ -119,40 +130,77 @@ function titlesFromSource(src) {
 	return out;
 }
 
-/* The URL luci.js itself would use for that module, byte for byte — base_url, the dotted name as a
- * path, and the same `?v=`. That is the point: a page the router has already prefetched is served
- * from the browser cache and this fetch costs nothing. */
+/* The URL luci.js itself would use for that module, byte for byte — base_url, the menu's view path
+ * and the same `?v=`. That is the point: a page the router has already prefetched is served from
+ * the browser cache and this fetch costs nothing. (`action.path` is already slash-separated; the
+ * dot-to-slash rewrite in luci.js applies to the dotted MODULE name, which is not what this is.) */
 function moduleUrl(viewPath) {
 	const v = version();
 	return L.env.base_url + '/view/' + viewPath + '.js' + (v ? '?v=' + v : '');
 }
 
 function harvestSource(job) {
-	return fetch(moduleUrl(job.view), { credentials: 'same-origin' })
-		.then((r) => (r.ok ? r.text() : ''))
-		.then((src) => {
-			_spent += src.length;
-			record(job.path, titlesFromSource(src));
+	/* the page may have been rendered — and indexed from its DOM, which sees more — between the
+	 * queue being built and this job coming up */
+	if (job.path in _cache.pages) return Promise.resolve();
+
+	const ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+	const timer = ctl ? window.setTimeout(() => ctl.abort(), FETCH_MS) : null;
+
+	return fetch(moduleUrl(job.view), { credentials: 'same-origin', signal: ctl ? ctl.signal : undefined })
+		.then((r) => {
+			/* A 404 is a menu node whose package ships its view elsewhere: a permanent miss, and
+			 * recording it empty is what stops the queue coming back to it. Any other non-OK is
+			 * the SERVER having a bad moment (503 while rpcd restarts, 403 on a session that just
+			 * expired) and must not be cached as "this page has no sections" for the life of the
+			 * resource version. */
+			if (r.ok) return r.text().then((src) => { _spent += src.length; record(job.path, titlesFromSource(src)); });
+			if (r.status === 404) record(job.path, []);
+			return null;
 		})
-		/* a 404 is a menu node whose package ships its view elsewhere; remember the miss so the
-		 * queue does not come back to it */
-		.catch(() => record(job.path, []));
+		/* a network failure, an abort or an offline moment: leave the page unrecorded so a later
+		 * session picks it up. The queue moves on either way. */
+		.catch(() => null)
+		.then(() => { if (timer) window.clearTimeout(timer); });
 }
 
 /* ---- the queue ----------------------------------------------------------- */
 
 /* Every menu node that instantiates a view, with the title trail the palette needs to render it.
- * Walked once: the tree is fixed for the life of the document. */
-function jobs() {
+ *
+ * The walk is the theme's, deliberately duplicated rather than approximated, because fs-search
+ * ranks these rows against its own and both halves have to mean the same thing by `depth` and
+ * `trail`. So: start INSIDE each mode (`admin`), which is a container rather than a destination —
+ * its own title is not part of any page's trail — and stop at the same MAX_DEPTH. Getting this
+ * wrong is not a crash: it shifts every section row's rank by a constant and prefixes every trail
+ * with "Administration", which reads as a ranking quirk rather than as a bug. */
+let _jobs = null, _jobPaths = null;
+
+function buildJobs() {
 	const out = [];
-	(function walk(node, segs, trail, depth) {
-		const kids = node && node.children;
+	const root = tree.tree();
+	if (!root) return out;
+
+	const childrenOf = (node) => {
+		const kids = (node && node.children) || {};
+		const list = [];
 		for (const name in kids) {
 			const c = kids[name];
 			if (!c || !c.satisfied || !c.title) continue;
-			const csegs = segs.concat([ name ]);
+			list.push({ name: name, node: c });
+		}
+		return list;
+	};
+
+	const walk = (node, segs, trail, depth) => {
+		childrenOf(node).forEach((entry) => {
+			const c = entry.node;
+			/* the chrome carries its own Logout; the theme skips it here and so must this, or a
+			 * section search could offer a row that signs the reader out */
+			if (depth === 1 && entry.name === 'logout') return;
+			const csegs = segs.concat([ entry.name ]);
 			const title = _(c.title);
-			if (c.action && c.action.type === 'view' && depth <= 4) {
+			if (c.action && c.action.type === 'view') {
 				out.push({
 					path: csegs.join('/'),
 					segs: csegs,
@@ -162,12 +210,42 @@ function jobs() {
 					depth: depth
 				});
 			}
-			if (depth < 4) walk(c, csegs, trail.concat([ title ]), depth + 1);
-		}
-	})(tree.tree(), [], [], 1);
-	/* the root is the mode (admin), a container rather than a destination — the walk above starts
-	 * inside it, so `segs` already begins with it */
+			if (depth < MAX_DEPTH) walk(c, csegs, trail.concat([ title ]), depth + 1);
+		});
+	};
+
+	/* Start INSIDE each mode, exactly as fs-search's buildIndex() does. The mode (`admin`) is a
+	 * container and not a destination: it contributes its segment to the path, but its title is
+	 * not part of any page's trail and its level is not a level. Walking from the root instead
+	 * gave every page depth+1 and prefixed every trail with "Administration" — which then showed
+	 * in the palette as "Administration › System › System" beside the theme's own "System", and
+	 * put the word into the `p` haystack, so a search for "administration" matched every section
+	 * and no page. */
+	childrenOf(root).forEach((mode) => walk(mode.node, [ mode.name ], [], 1));
+
 	return out;
+}
+
+/* Walked once: the tree is fixed for the life of the document, and this is called from build() on
+ * every cache miss as well as from buildQueue(). */
+function jobs() {
+	if (!_jobs) {
+		_jobs = buildJobs();
+		_jobPaths = new Set(_jobs.map((j) => j.path));
+	}
+	return _jobs;
+}
+
+/* The longest indexed ancestor of a navigated path, itself included. */
+function jobPathFor(segs) {
+	jobs();
+	const parts = segs.slice();
+	while (parts.length) {
+		const p = parts.join('/');
+		if (_jobPaths.has(p)) return p;
+		parts.pop();
+	}
+	return '';
 }
 
 let _queue = null;
@@ -305,18 +383,25 @@ function landOn(title, first) {
  * <main> for its skip link. */
 const NATURALLY_FOCUSABLE = /^(?:a|button|input|select|textarea)$/i;
 
-/* Focus follows the landing, because otherwise it lands nowhere near it: the palette's Enter
- * synthesises a click carrying `detail === 0`, which the theme's router reads as a keyboard
- * activation and answers by focusing the skip link — so choosing a section leaves the "Skip to
- * content" pill on screen and the reader four Tab stops above what they asked for.
+/* Focus follows the landing, because otherwise it lands nowhere near it. The router parks focus in
+ * one of three places depending on how the row was activated, and none of them is the section:
+ * the palette's Enter synthesises a click carrying `detail === 0`, which the router reads as a
+ * keyboard activation and answers by focusing the skip link, so the reader gets the "Skip to
+ * content" pill; a pointer activation focuses `#maincontent` instead (fs-router.js: `const main =
+ * skip || document.getElementById('maincontent')`); and the re-render the router does over the
+ * first landing (2009 ms -> 2161 ms on the stand, see above) throws focus back to <body>.
  *
- * Not first-only: the re-render the router does over the first landing (2009 ms -> 2161 ms on the
- * stand, see above) throws focus back to <body>, so the second landing is the one that keeps it.
- * Only from <body> or from the skip link — a reader who has already clicked into a field on the
- * page keeps it, and that is also what stops this stealing focus back after the deadline. */
+ * So all three are treated as "focus is nowhere yet", and only those three — a reader who has
+ * already clicked into a field on the page keeps it, which is also what stops this stealing focus
+ * back after the deadline. Not first-only, because the second landing is the one that keeps it. */
+function unclaimed(el) {
+	if (!el || el === document.body) return true;
+	if (el.classList && el.classList.contains('fs-skip')) return true;
+	return el.id === 'maincontent';
+}
+
 function refocus(el) {
-	const a = document.activeElement;
-	if (a && a !== document.body && !a.classList.contains('fs-skip')) return;
+	if (!unclaimed(document.activeElement)) return;
 	if (!NATURALLY_FOCUSABLE.test(el.tagName) && !el.hasAttribute('tabindex'))
 		el.setAttribute('tabindex', '-1');
 	try { el.focus({ preventScroll: true }); } catch (e) {}
@@ -416,6 +501,11 @@ function register() {
 return baseclass.extend({
 	register,
 	entries,
+	/* Every page this session can reach, for `:e` in fs-palette-commands. Exported rather than
+	 * walked a third time: this module already owns the walk and is loaded on every page anyway, so
+	 * the command table gets the list for nothing. Already ACL-filtered, because the menu blob it
+	 * comes from is. */
+	pages: () => jobs().map((j) => ({ path: j.path, segs: j.segs, title: j.title, trail: j.trail })),
 	/* out of package, for a probe on a stand: what the index holds right now */
 	stats: () => ({ v: _cache.v, pages: Object.keys(_cache.pages).length, rows: entries().length, spent: _spent })
 });
