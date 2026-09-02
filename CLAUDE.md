@@ -78,11 +78,16 @@ prefixes every trail with "Administration".
 **Our CSS may not name the theme's private tokens without a fallback.** `--fs-*` is the private
 tier and `mangle-tokens.sh` renames it to `--a`, `--b`, … deriving the reserved set by scanning the
 THEME's own `htdocs/luci-static/resources` and `ucode` — which this package is not in. Measured
-against 0.14.5: of the 21 `--fs-*` names `cmd.css` reads, **6 survive and 15 do not**. A dev
-stand mangles nothing, so the failure is invisible exactly where it would be caught. Every `var()`
-therefore names the private token first and falls back to the **export tier**
-(`--background-color-*`, `--border-color-*`, `--text-color-*` — the documented outbound contract
-with third-party apps, a different prefix that the mangler does not touch) for colour, and to the
+against 0.14.8: of the 26 `--fs-*` names `cmd.css` reads, **none survive**. Six did at 0.14.5,
+because the theme's own JS happened to name them; it no longer does, so **the surviving set is to be
+treated as EMPTY** rather than re-measured and relied on. A dev stand mangles nothing, so the
+failure is invisible exactly where it would be caught: a bare `var(--fs-space-4)` inside `inset`
+made the whole shorthand invalid at computed-value time and put the bar in the window's top-left
+corner on every real install, while every stand and the probe stayed green. `tools/t0.sh` fails on
+a bare `var(--fs-…)` in `cmd.css` for that reason. Every `var()` therefore names the private token
+first and falls back to the **export tier** (`--background-color-*`, `--border-color-*`,
+`--text-color-*`, `--primary-color-*`, `--error-color-*` — the documented outbound contract with
+third-party apps, a different prefix that the mangler does not touch) for colour, and to the
 theme's own measured value at density 1 for everything else.
 
 **Never patch the theme from here, and never add a seam without needing it.** A change on the theme

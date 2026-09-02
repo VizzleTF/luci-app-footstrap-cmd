@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.1.2 — 2026-09-02
+
+### Fixed
+
+- **The bar rendered in the top-left corner of the window on a real install.** 0.1.1 moved it off
+  the bottom edge with `inset: auto 0 var(--fs-space-4) 0`, and that was the one `var()` in the
+  sheet with no fallback. `--fs-*` is the theme's private tier: `mangle-tokens.sh` renames it and
+  derives the reserved set by scanning the THEME's own tree, which this package is not in. Six of
+  the names this sheet reads survived that at 0.14.5 — `--fs-space-4` among them, which is why a
+  bare one looked safe — and **none of the 26 it reads now survive at 0.14.8**. With the token gone
+  the `var()` has nothing to resolve to, `inset` is invalid at computed-value time and falls back to
+  its initial `auto` on all four sides, and the bar is laid out at its static position. Measured at
+  1280x800 against a stand with the token forced invalid: top 0, left 0, against 626/784 and a
+  16px stand-off when it resolves.
+
+  Every `var()` in `cmd.css` now carries a fallback — the six that were bare included, which is
+  where `--fs-text`, `--fs-accent` and `--fs-danger` gain the export tier (`--text-color-high`,
+  `--primary-color-high`, `--error-color-high`) and the two font tokens gain their stacks.
+  **Treat the surviving set as empty**: a private name is reserved only for as long as some theme
+  file unrelated to this one happens to keep naming it, which is not a contract.
+
+  `tools/t0.sh` now fails on a bare `var(--fs-…)` in `cmd.css`. A dev stand mangles nothing, so
+  neither `tools/probe.mjs` nor the eye can see this class of bug — the source is the only place it
+  is visible before a release.
+
 ## 0.1.1 — 2026-09-01
 
 ### Changed

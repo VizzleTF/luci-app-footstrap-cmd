@@ -74,6 +74,28 @@ for f in "$PKG"/root/etc/uci-defaults/* "$PKG"/update-po.sh tools/*.sh; do
 	ok $? "  $(basename "$f") parses"
 done
 
+# ---- the stylesheet: no private token without a fallback ---------------------
+#
+# `--fs-*` is the theme's private tier and mangle-tokens.sh renames it, deriving the reserved set
+# from the THEME's own tree — which this package is not in. Six names survived at 0.14.5 and none
+# do at 0.14.8, so a bare `var(--fs-x)` is a time bomb rather than a shortcut: measured, a bare
+# `--fs-space-4` inside `inset` made the whole shorthand invalid at computed-value time and put the
+# bar in the top-left corner of the window on every real install. A dev stand mangles nothing, so
+# neither the probe nor the eye can catch this — only a reader of the source can, which is what
+# this is.
+#
+# `if`, not a bare command with `ok $?`: this script runs under `set -e`, which exits before the
+# reporting line and leaves a failing gate with nothing on stdout to say which one failed.
+if node -e '
+	const fs = require("fs");
+	const f = process.argv[1];
+	/* comments carry these names on purpose, so they are stripped before the search */
+	const css = fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+	const bare = [...css.matchAll(/var\(\s*--fs-[a-zA-Z0-9-]*\s*\)/g)].map((m) => m[0]);
+	if (bare.length) { console.error(bare.join(" ")); process.exit(1); }
+' "$PKG/htdocs/luci-static/footstrap-cmd/cmd.css" 2>"$work/bare.txt"; then rc=0; else rc=1; fi
+ok $rc "  cmd.css names no private token without a fallback" "$(cat "$work/bare.txt")"
+
 # ---- the probes -------------------------------------------------------------
 for f in tools/*.mjs; do
 	[ -f "$f" ] || continue

@@ -15,20 +15,31 @@
  * `--fs-*` is the theme's PRIVATE tier and its names do not survive a package build. The theme's
  * mangle-tokens.sh renames them to `--a`, `--b`, … and derives the reserved set by scanning the
  * THEME's own htdocs/luci-static/resources and ucode — which this package is not in. Measured
- * against the theme at 0.14.5: of the 21 `--fs-*` names this sheet reads, 6 survive
- * (--fs-accent, --fs-danger, --fs-font-mono, --fs-font-sans, --fs-space-4, --fs-text) because the
- * theme's own JS happens to mention them, and 15 do not. On a dev stand nothing is mangled, so the
- * failure is invisible exactly where it would be caught.
+ * against the theme at 0.14.8: of the 26 `--fs-*` names this sheet reads, ZERO survive. Six did at
+ * 0.14.5 (--fs-accent, --fs-danger, --fs-font-mono, --fs-font-sans, --fs-space-4, --fs-text),
+ * because the theme's own JS happened to mention them; it no longer does, and the six that looked
+ * safe enough to read bare are exactly the ones that broke. Treat the surviving set as EMPTY: a
+ * name is reserved only for as long as some theme file unrelated to this one keeps naming it.
+ * On a dev stand nothing is mangled, so the failure is invisible exactly where it would be caught.
+ *
+ * What that cost, and why no var() here is bare any more: `inset: auto 0 var(--fs-space-4) 0` with
+ * the token gone is invalid at computed-value time, so `inset` fell back to its initial `auto` on
+ * all four sides and the bar was laid out at its static position — measured at 1280x800 against a
+ * stand with the token forced invalid: top 0, left 0, i.e. the top-left corner of the window
+ * instead of the bottom of the content column.
  *
  * So each var() names the private token FIRST — a dev build, and any name the theme later reserves,
  * resolves through it exactly — and falls back to:
  *
  *   * for colour, the theme's EXPORT TIER (`--background-color-*`, `--border-color-*`,
- *     `--text-color-*`). That is the documented outbound contract with third-party apps
+ *     `--text-color-*`, `--primary-color-*`, `--error-color-*`). That is the documented outbound
+ *     contract with third-party apps
  *     (docs/third-party-apps.md, rule 6), it is a different prefix and mangle-tokens.sh does not
  *     touch it, and it follows the palette, the tint and dark mode the same way the private token
  *     does. The mapping is the theme's own: `--background-color-high: var(--fs-panel)`,
- *     `--border-color-medium: var(--fs-border)`, `--text-color-low: var(--fs-faint)`.
+ *     `--border-color-medium: var(--fs-border)`, `--text-color-low: var(--fs-faint)`,
+ *     `--text-color-high: var(--fs-text)`, `--primary-color-high: var(--fs-accent)`,
+ *     `--error-color-high: var(--fs-danger)`.
  *   * for everything else, the theme's own value at density 1, read from its styles/ tree. A
  *     literal cannot follow the density axes, so a mangled build renders the bar at normal density
  *     whatever the reader chose. That is a visible degradation and not a broken bar, which is the
@@ -59,7 +70,7 @@
 	 * desktop calc leaves the bar 24px narrower than the content and hugging the left edge. */
 	.fs-cmd {
 		position: fixed;
-		inset: auto 0 var(--fs-space-4) 0;
+		inset: auto 0 var(--fs-space-4, 16px) 0;
 		width: calc(100% - var(--fs-content-pad, 28px) * 2);
 		max-width: calc(var(--fs-content-max, 1280px) - var(--fs-content-pad, 28px) * 2);
 		margin-inline: auto;
@@ -72,7 +83,7 @@
 		border-radius: var(--fs-radius-lg, 12px);
 		overflow: hidden;
 		box-shadow: var(--fs-shadow-pop, 0 12px 34px rgba(0, 0, 0, .30));
-		font-family: var(--fs-font-mono);
+		font-family: var(--fs-font-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace);
 		font-size: var(--fs-type, 13px);
 	}
 
@@ -82,7 +93,7 @@
 	 * `.alert-message`, arrived at by measurement rather than by arithmetic. */
 	@media (max-width: 767px) {
 		.fs-cmd {
-			inset: auto var(--fs-space-4) var(--fs-space-4) var(--fs-space-4);
+			inset: auto var(--fs-space-4, 16px) var(--fs-space-4, 16px) var(--fs-space-4, 16px);
 			width: auto; max-width: none;
 		}
 	}
@@ -91,13 +102,13 @@
 	 * `:log` 40, and a fixed element cannot be scrolled by the page around it. */
 	.fs-cmd-out {
 		max-height: min(40dvh, 380px); overflow: auto;
-		margin: 0; padding: var(--fs-space-3, 12px) var(--fs-space-4);
+		margin: 0; padding: var(--fs-space-3, 12px) var(--fs-space-4, 16px);
 		border-block-end: var(--fs-hairline, 1px solid var(--border-color-medium));
-		color: var(--fs-text);
+		color: var(--fs-text, var(--text-color-high));
 		font-family: inherit; font-size: inherit; line-height: 1.5;
 		white-space: pre; tab-size: 4;
 	}
-	.fs-cmd-out.bad { color: var(--fs-danger); }
+	.fs-cmd-out.bad { color: var(--fs-danger, var(--error-color-high)); }
 
 	/* vim's wildmenu: the candidates on one wrapping row, with the current one's help text under it.
 	 *
@@ -105,7 +116,7 @@
 	 * whose children are not all options is an invalid tree — the help line is a sibling of the
 	 * list, not a member of it. */
 	.fs-cmd-hint {
-		padding: var(--fs-space-2, 8px) var(--fs-space-4);
+		padding: var(--fs-space-2, 8px) var(--fs-space-4, 16px);
 		border-block-end: var(--fs-hairline, 1px solid var(--border-color-medium));
 		color: var(--fs-faint, var(--text-color-low));
 	}
@@ -126,11 +137,11 @@
 		color: inherit; font: inherit; line-height: inherit;
 		cursor: pointer;
 	}
-	.fs-cmd-cand.active { background: var(--fs-accent-soft, transparent); color: var(--fs-accent); }
+	.fs-cmd-cand.active { background: var(--fs-accent-soft, transparent); color: var(--fs-accent, var(--primary-color-high)); }
 	.fs-cmd-help {
 		margin-block-start: var(--fs-space-1, 4px);
 		color: var(--fs-faint, var(--text-color-low));
-		font-family: var(--fs-font-sans);
+		font-family: var(--fs-font-sans, "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
 		font-size: var(--fs-type-xs, 11px);
 	}
 	.fs-cmd-help:empty { display: none; }
@@ -145,7 +156,7 @@
 		border-radius: var(--fs-radius-sm, 8px);
 	}
 	@keyframes fs-cmd-flash {
-		from { outline: 2px solid var(--fs-accent); outline-offset: 3px; }
+		from { outline: 2px solid var(--fs-accent, var(--primary-color-high)); outline-offset: 3px; }
 		to   { outline: 2px solid transparent; outline-offset: 3px; }
 	}
 	@media (prefers-reduced-motion: reduce) {
@@ -154,7 +165,7 @@
 
 	.fs-cmd-line {
 		display: flex; align-items: center;
-		padding: var(--fs-space-2-5, 10px) var(--fs-space-4);
+		padding: var(--fs-space-2-5, 10px) var(--fs-space-4, 16px);
 	}
 
 	/* Two classes deep on purpose: the theme's generic field box is `input[type="text"], …`
@@ -164,7 +175,7 @@
 	.fs-cmd-line .fs-cmd-input {
 		flex: 1 1 auto; min-width: 0;
 		margin: 0; padding: 0; border: 0; min-height: 0; background: transparent;
-		color: var(--fs-text);
+		color: var(--fs-text, var(--text-color-high));
 		font-family: inherit; font-size: var(--fs-type-lg, 16px); line-height: 1.4;
 	}
 	.fs-cmd-line .fs-cmd-input:focus { outline: none; box-shadow: none; }
